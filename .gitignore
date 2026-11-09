@@ -1,0 +1,23 @@
+# Android
+assistant/.gradle/
+assistant/build/
+assistant/app/build/
+assistant/local.properties
+*.keystore
+!debug.keystore
+
+# 训练产物
+trainer/dataset*/
+trainer/fonts/
+trainer/app_model/
+trainer/smoke_preview/
+trainer/__pycache__/
+
+# 逆向材料大文件（按需决定是否入库）
+apk_res_png/
+sheet*.png
+
+# 系统
+Thumbs.db
+.DS_Store
+apk/

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.xiangqiscan.app.scan.BoardOverlayView
+        android:id="@+id/overlay"
+        android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/tvHint"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="8dp" android:gravity="center" android:text="@string/scan_hint"
+        android:textSize="13sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:padding="12dp">
+        <Button android:id="@+id/btnRecheck" style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="@string/scan_recheck" />
+        <Button android:id="@+id/btnNext"
+            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="@string/scan_next" />
+    </LinearLayout>
+</LinearLayout>

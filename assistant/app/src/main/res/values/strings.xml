@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">象棋摆谱助手</string>
+    <string name="btn_camera">拍照识别</string>
+    <string name="btn_album">相册导入识别</string>
+    <string name="hint_main">识别棋盘 → 自动摆谱 → 写入《中国象棋》(cnvcs) 的棋谱目录，\n然后在其"打谱/载入对局"里打开即可。\n\n支持：其他象棋App截图 / 实体棋盘照片 / 棋书图谱。</string>
+    <string name="btn_open_chess">打开《中国象棋》</string>
+    <string name="btn_settings">设置</string>
+    <string name="scan_recheck">重新识别</string>
+    <string name="scan_next">下一步</string>
+    <string name="scan_hint">拖动四个角点对准棋盘边框；确认后点"下一步"识别棋子</string>
+    <string name="editor_save">生成并写入象棋App</string>
+    <string name="editor_export">仅导出PGN文件</string>
+    <string name="editor_flip">红在上/下 翻转</string>
+    <string name="editor_turn_red">轮红走</string>
+    <string name="editor_turn_black">轮黑走</string>
+    <string name="editor_palette_hint">先点棋盘点，再点下面棋子设置/清除</string>
+    <string name="cap_title">将棋盘放入框内拍摄</string>
+    <string name="cap_shot">拍摄</string>
+    <string name="root_ok">已写入（root）</string>
+    <string name="root_fail">root 写入失败，已导出到 Download</string>
+    <string name="saved_download">已导出到 Download/象棋摆谱/，请在象棋App中导入</string>
+</resources>

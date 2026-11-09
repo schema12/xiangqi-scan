@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.XiangqiScan" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#2E5B34</item>
+        <item name="colorPrimary">#2E5B34</item>
+        <item name="colorAccent">#C8A24B</item>
+    </style>
+</resources>

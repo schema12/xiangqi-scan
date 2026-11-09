@@ -1,0 +1,39 @@
+name: train-model
+
+on:
+  workflow_dispatch:
+    inputs:
+      per_class:
+        description: "每类合成样本数"
+        default: "12000"
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        working-directory: trainer
+        run: pip install -r requirements.txt
+
+      - name: Generate dataset
+        working-directory: trainer
+        env:
+          GEN_FONTS_FORCE: "1"
+        run: python -I gen_data.py --per-class ${{ github.event.inputs.per_class || '12000' }} --jobs 2
+
+      - name: Train
+        working-directory: trainer
+        run: python -I train.py --epochs 4
+
+      - name: Upload model
+        uses: actions/upload-artifact@v4
+        with:
+          name: pieces-int8-tflite
+          path: trainer/app_model/pieces_int8.tflite
