@@ -14,6 +14,7 @@ import com.xiangqiscan.app.core.Position
 import com.xiangqiscan.app.databinding.ActivityScanBinding
 import com.xiangqiscan.app.cv.BoardDetector
 import com.xiangqiscan.app.io.Prefs
+import com.xiangqiscan.app.ml.CellResult
 import com.xiangqiscan.app.ml.CellSampler
 import com.xiangqiscan.app.ml.HeuristicClassifier
 import com.xiangqiscan.app.ml.PieceClassifier

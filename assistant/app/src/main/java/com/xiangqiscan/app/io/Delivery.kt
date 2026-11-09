@@ -54,7 +54,7 @@ object Delivery {
         val cmds = linkedSetOf(prefs.suCommand, "su")
         for (cmd in cmds) {
             try {
-                val shell = Shell.Builder.create(cmd).build()
+                val shell = Shell.Builder.create().build(cmd)
                 if (!shell.isRoot) {
                     shell.close()
                     continue

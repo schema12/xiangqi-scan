@@ -24,7 +24,6 @@ class BoardEditorView @JvmOverloads constructor(
     /** 需要人工指定字形的点（识别到子但认不出类型） */
     val pending = mutableSetOf<Int>()
     var selected = -1
-        private set
     var onSelect: ((Int) -> Unit)? = null
 
     private var cell = 0f

@@ -31,7 +31,7 @@ object BoardDetector {
             if (abs(det) < 1e-9) return null
             val x = (rho * d - b * o.rho) / det
             val y = (a * o.rho - c * rho) / det
-            return PointF(x, y)
+            return PointF(x.toFloat(), y.toFloat())
         }
     }
 
