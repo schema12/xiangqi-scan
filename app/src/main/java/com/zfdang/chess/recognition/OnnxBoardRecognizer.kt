@@ -135,10 +135,13 @@ class OnnxBoardRecognizer(private val context: Context) {
         // 角点精修：识别可疑时（棋盘正下方按钮等强特征会把底边角点拖偏），
         // 对 J0/J8 的 y 平移扫描重分类，取 margin 最优
         if (res.avgConfidence < 0.6f) {
+            val base = res.corners
             var dy = -160
             while (dy <= 160) {
                 if (dy != 0) {
-                    val c = res.corners.copyOf().also { it[5] += dy; it[7] += dy }
+                    val c = base.copyOf()
+                    c[5] = c[5] + dy
+                    c[7] = c[7] + dy
                     finishRecognition(best.src, c)?.let { r ->
                         if (r.avgConfidence > res.avgConfidence) res = r
                     }
@@ -172,7 +175,11 @@ class OnnxBoardRecognizer(private val context: Context) {
     /** 角点已知时的后半段：透视矫正 → 分类 → 组装（角点精修复用） */
     private fun finishRecognition(src: Bitmap, corners: FloatArray): Result? {
         return try {
-            val warped = warpPerspective(src, corners, WARP_W, WARP_H, WARP_DST)
+            val dst = floatArrayOf(WARP_PADDING.toFloat(), WARP_PADDING.toFloat(),
+                WARP_W - WARP_PADDING.toFloat(), WARP_PADDING.toFloat(),
+                WARP_PADDING.toFloat(), WARP_H - WARP_PADDING.toFloat(),
+                WARP_W - WARP_PADDING.toFloat(), WARP_H - WARP_PADDING.toFloat())
+            val warped = warpPerspective(src, corners, WARP_W, WARP_H, dst)
 
             val cropX = (WARP_W - CLASSIFIER_CROP_W) / 2
             val cropY = (WARP_H - CLASSIFIER_CROP_H) / 2
@@ -213,7 +220,7 @@ class OnnxBoardRecognizer(private val context: Context) {
             }
 
             Result(grid, gridToFen(grid), probs.sum() / 90f, confOut, warnings,
-                corners, warpedBitmapForDisplay(src, corners), 0L)
+                corners, finishRecognition(src, corners)?.warped, 0L)
         } catch (e: Exception) {
             android.util.Log.e("BoardRec", "finish failed", e)
             null
@@ -282,11 +289,12 @@ class OnnxBoardRecognizer(private val context: Context) {
                 pts[i * 2] = mxi / 2f      // SimCC bin → 256 空间坐标
                 pts[i * 2 + 1] = myi / 2f
             }
-            val invM = Matrix().apply {
+            val fwd = Matrix().apply {
                 setScale(s, s)
                 postTranslate(POSE_INPUT_SIZE / 2f - cx * s, POSE_INPUT_SIZE / 2f - cy * s)
-                invert()
             }
+            val invM = Matrix()
+            fwd.invert(invM)
             val back = FloatArray(n * 2)
             invM.mapPoints(back, pts)
             return back   // [A0.x,A0.y, A8.x,A8.y, J0.x,J0.y, J8.x,J8.y]

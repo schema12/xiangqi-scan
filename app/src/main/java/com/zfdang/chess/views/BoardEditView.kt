@@ -10,6 +10,8 @@ import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.View
 
+import com.zfdang.chess.R
+
 /**
  * 识别摆谱的校对棋盘：复用 ChessView 的棋盘/棋子素材与几何常量，
  * 显示识别网格（可编辑）、低置信格红框提示。

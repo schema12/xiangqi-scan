@@ -24,6 +24,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.github.mikephil.charting.components.Description
 import com.zfdang.chess.adapters.HistoryAndTrendAdapter
 import com.zfdang.chess.controllers.GameController
+import com.zfdang.chess.views.CaptureActivity
+import com.zfdang.chess.views.ScanActivity
 import com.zfdang.chess.controllers.ControllerListener
 import com.zfdang.chess.databinding.ActivityGameBinding
 import com.zfdang.chess.gamelogic.GameStatus
@@ -57,7 +59,6 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
     private var isFromManual = false
 
     @SuppressLint("ClickableViewAccessibility")
-    override fun onCreate(savedInstanceState: Bundle?) {
     // 识别摆谱：拍照 / 相册 → ScanActivity → FENString 回到本页
     private val captureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -68,6 +69,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
     private val pickImage = registerForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri -> uri?.let { openScan(null, it) } }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
 
