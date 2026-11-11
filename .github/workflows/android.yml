@@ -1,0 +1,42 @@
+name: Build-ChessFish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'testimgs/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codes
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - name: Build release APKs (both flavors)
+        run: ./gradlew assembleArmv8-Release assembleArmv8-dotprod-Release --stacktrace
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p release-staging
+          cp app/build/outputs/apk/armv8-/release/*.apk release-staging/ || true
+          cp app/build/outputs/apk/armv8-dotprod-/release/*.apk release-staging/ || true
+          ls -la release-staging/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChessFish-apks
+          if-no-files-found: error
+          path: release-staging

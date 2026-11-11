@@ -1,0 +1,22 @@
+<resources>
+    <string name="cap_shot">拍照</string>
+    <string name="cap_hint">棋盘对准 3:4 框内拍摄</string>
+    <string name="rec_loading">正在识别棋盘…</string>
+    <string name="rec_failed">识别失败，请重试或换一张图</string>
+    <string name="rec_start_game">从此局面开始对弈</string>
+    <string name="rec_copy_fen">复制 FEN</string>
+    <string name="app_name">Chinese Chess</string>
+    <string name="title_activity_play">PlayActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+
+    <string name="engine_terminated">Engine terminated</string>
+    <string name="uci_protocol_error">UCI protocol error</string>
+    <string name="failed_to_start_engine">Failed to start engine</string>
+
+    <string-array name="choice_values">
+        <item>Choice 1</item>
+        <item>Choice 2</item>
+        <item>Choice 3</item>
+    </string-array>
+</resources>

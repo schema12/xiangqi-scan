@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/constraintlayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/ui_paper">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:id="@+id/game_content">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <ImageButton
+                android:id="@+id/exitbt"
+                style="@style/Widget.Chess.Action"
+                android:contentDescription="保存并返回"
+                android:tooltipText="保存并返回"
+                app:srcCompat="@drawable/arrow_back" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="对弈"
+                    android:textSize="20sp"
+                    android:textColor="@color/ui_ink"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/opponent_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="你执红 · 电脑执黑"
+                    android:textSize="11sp"
+                    android:textColor="@color/ui_muted" />
+            </LinearLayout>
+            <ImageButton
+                android:id="@+id/optionbt"
+                style="@style/Widget.Chess.Action"
+                android:contentDescription="对弈设置"
+                android:tooltipText="对弈设置"
+                app:srcCompat="@drawable/tune" />
+        </LinearLayout>
+        <com.zfdang.chess.views.FittedChessLayout
+            android:id="@+id/chesslayout"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:layout_marginVertical="4dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:minHeight="40dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:background="@drawable/ui_card"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp">
+            <TextView
+                android:id="@+id/statustv"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="等待红方走棋"
+                android:textColor="@color/ui_red"
+                android:textSize="13sp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+            <ImageButton
+                android:id="@+id/choice1bt"
+                android:visibility="gone"
+                style="@style/Widget.Chess.Action"
+                android:contentDescription="选择第1个建议"
+                android:tooltipText="选择第1个建议"
+                app:srcCompat="@drawable/looks_1" />
+            <ImageButton
+                android:id="@+id/choice2bt"
+                android:visibility="gone"
+                style="@style/Widget.Chess.Action"
+                android:contentDescription="选择第2个建议"
+                android:tooltipText="选择第2个建议"
+                app:srcCompat="@drawable/looks_2" />
+            <ImageButton
+                android:id="@+id/choice3bt"
+                android:visibility="gone"
+                style="@style/Widget.Chess.Action"
+                android:contentDescription="选择第3个建议"
+                android:tooltipText="选择第3个建议"
+                app:srcCompat="@drawable/looks_3" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="0dp">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageButton
+                    android:id="@+id/newbt"
+                    style="@style/Widget.Chess.Action"
+                    android:contentDescription="新局"
+                    android:tooltipText="新局"
+                    app:srcCompat="@drawable/new_window" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="新局"
+                    android:textSize="11sp"
+                    android:textColor="@color/ui_muted"
+                    android:gravity="center" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageButton
+                    android:id="@+id/backbt"
+                    style="@style/Widget.Chess.Action"
+                    android:contentDescription="悔棋"
+                    android:tooltipText="悔棋"
+                    app:srcCompat="@drawable/arrow_back" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="悔棋"
+                    android:textSize="11sp"
+                    android:textColor="@color/ui_muted"
+                    android:gravity="center" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageButton
+                    android:id="@+id/helpbt"
+                    style="@style/Widget.Chess.Action"
+                    android:contentDescription="提示"
+                    android:tooltipText="提示"
+                    app:srcCompat="@drawable/help" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="提示"
+                    android:textSize="11sp"
+                    android:textColor="@color/ui_muted"
+                    android:gravity="center" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageButton
+                    android:id="@+id/trendsbt"
+                    style="@style/Widget.Chess.Action"
+                    android:contentDescription="走势"
+                    android:tooltipText="走势"
+                    app:srcCompat="@drawable/history" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="走势"
+                    android:textSize="11sp"
+                    android:textColor="@color/ui_muted"
+                    android:gravity="center" />
+            </LinearLayout>
+        </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/morebt"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="引擎与棋局工具  ▾"
+            android:textColor="@color/ui_muted"
+            app:backgroundTint="@android:color/transparent"
+            app:strokeWidth="0dp" />
+        <LinearLayout
+            android:id="@+id/advanced_tools"
+            android:layout_width="match_parent"
+            android:layout_height="156dp"
+            android:orientation="vertical"
+            android:background="@drawable/ui_card"
+            android:padding="8dp"
+            android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/playerbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="执棋模式"
+                        android:tooltipText="执棋模式"
+                        app:srcCompat="@drawable/computer" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="执棋模式"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/playerbackbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="退一步"
+                        android:tooltipText="退一步"
+                        app:srcCompat="@drawable/arrow_back" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="退一步"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/playerforwardbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="电脑走棋"
+                        android:tooltipText="电脑走棋"
+                        app:srcCompat="@drawable/arrow_forward" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="电脑走棋"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/autoplaybt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="自动走棋"
+                        android:tooltipText="自动走棋"
+                        app:srcCompat="@drawable/play_circle" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="自动走棋"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/playeraltbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="候选着法"
+                        android:tooltipText="候选着法"
+                        app:srcCompat="@drawable/alt_route" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="候选着法"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/quickbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="立即落子"
+                        android:tooltipText="立即落子"
+                        app:srcCompat="@drawable/quick" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="立即落子"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/importbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="导入棋局"
+                        android:tooltipText="导入棋局"
+                        app:srcCompat="@drawable/import_fen" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="导入棋局"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/exportbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="复制棋局"
+                        android:tooltipText="复制棋局"
+                        app:srcCompat="@drawable/export" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="复制棋局"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/stophelpbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="停止提示"
+                        android:tooltipText="停止提示"
+                        app:srcCompat="@drawable/quick" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="停止提示"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <ImageButton
+                        android:id="@+id/scanbt"
+                        style="@style/Widget.Chess.Action"
+                        android:contentDescription="识别摆谱"
+                        android:tooltipText="识别摆谱"
+                        app:srcCompat="@drawable/ic_scan_board" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="识别摆谱"
+                        android:textSize="11sp"
+                        android:textColor="@color/ui_muted"
+                        android:gravity="center" />
+                </LinearLayout>
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="3" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="156dp"
+            android:orientation="vertical"
+            android:background="@drawable/ui_card"
+            android:padding="12dp"
+            android:id="@+id/history_panel">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/history_title"
+                android:text="棋局记录"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+                <ScrollView
+                    android:id="@+id/historyscroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true">
+                    <TableLayout
+                        android:id="@+id/historyTable"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </ScrollView>
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/trendchart"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/history_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="棋局尚未落子\n走过的每一步，都会记录在这里"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="8dp"
+                    android:textColor="@color/ui_muted" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>
