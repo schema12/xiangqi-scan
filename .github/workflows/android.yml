@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
       - 'testimgs/**'
   workflow_dispatch:
 
@@ -20,6 +19,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Report started
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "actions"
+          echo "started ${GITHUB_SHA} at $(date -u '+%F %T')" > ci_status.txt
+          git checkout -b ci-status 2>/dev/null || (git fetch origin ci-status && git checkout ci-status) || git checkout -b ci-status
+          echo "started ${GITHUB_SHA} at $(date -u '+%F %T')" > ci_status.txt
+          git add ci_status.txt
+          git commit -m "ci: started" || true
+          git push -f origin ci-status
+          git checkout main
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -28,7 +39,20 @@ jobs:
           cache: gradle
 
       - name: Build release APKs (both flavors)
-        run: ./gradlew assembleArmv8-Release assembleArmv8-dotprod-Release --stacktrace
+        run: |
+          set +e
+          ./gradlew assembleArmv8-Release assembleArmv8-dotprod-Release --stacktrace > build.log 2>&1
+          rc=$?
+          tail -c 6000 build.log > ci_status.txt
+          echo "" >> ci_status.txt
+          echo "gradle_exit=$rc" >> ci_status.txt
+          git config user.email "actions@github.com"
+          git config user.name "actions"
+          git checkout -b ci-status 2>/dev/null || (git fetch origin ci-status && git checkout ci-status) || git checkout -b ci-status
+          git add ci_status.txt
+          git commit -m "ci: gradle_exit=$rc"
+          git push -f origin ci-status
+          exit $rc
 
       - name: Stage release artifacts
         run: |
@@ -45,16 +69,14 @@ jobs:
           path: release-staging
 
       - name: Mirror APKs to apk branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.email "actions@github.com"
           git config user.name "actions"
           git fetch origin apk || true
           git branch -f apk origin/apk 2>/dev/null || git branch apk
           git checkout apk
-          rm -f app-debug.apk* ChessFish_*.apk 2>/dev/null || true
+          rm -f ChessFish_*.apk 2>/dev/null || true
           cp release-staging/*.apk .
           git add -A
-          git commit -m "apk: ${GITHUB_SHA}" || true
+          git commit -m "apk: ${GITHUB_SHA}"
           git push -f origin apk:apk
