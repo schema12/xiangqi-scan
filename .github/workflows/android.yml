@@ -8,6 +8,9 @@ on:
       - 'testimgs/**'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,3 +43,18 @@ jobs:
           name: ChessFish-apks
           if-no-files-found: error
           path: release-staging
+
+      - name: Mirror APKs to apk branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "actions"
+          git fetch origin apk || true
+          git branch -f apk origin/apk 2>/dev/null || git branch apk
+          git checkout apk
+          rm -f app-debug.apk* ChessFish_*.apk 2>/dev/null || true
+          cp release-staging/*.apk .
+          git add -A
+          git commit -m "apk: ${GITHUB_SHA}" || true
+          git push -f origin apk:apk
