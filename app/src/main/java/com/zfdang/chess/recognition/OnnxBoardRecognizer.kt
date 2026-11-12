@@ -188,7 +188,7 @@ class OnnxBoardRecognizer(private val context: Context) {
             val resized = Bitmap.createScaledBitmap(cropped, CLASSIFIER_INPUT_W, CLASSIFIER_INPUT_H, true)
 
             val (labels, probs) = classify(resized)
-            if (warped !== src) warped.recycle()
+            // warped 保留给 Result 展示（450×500，~0.9MB）
             if (resized !== cropped) resized.recycle()
             cropped.recycle()
 
@@ -220,7 +220,7 @@ class OnnxBoardRecognizer(private val context: Context) {
             }
 
             Result(grid, gridToFen(grid), probs.sum() / 90f, confOut, warnings,
-                corners, finishRecognition(src, corners)?.warped, 0L)
+                corners, warped, 0L)
         } catch (e: Exception) {
             android.util.Log.e("BoardRec", "finish failed", e)
             null
