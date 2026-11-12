@@ -1,28 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="#FF000000">
+    android:background="#000000">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/preview"
         android:layout_width="match_parent" android:layout_height="match_parent" />
 
-    <!-- 上下两条横线界定 3:4 取景框（图二效果） -->
-    <FrameLayout
-        android:layout_width="match_parent" android:layout_height="match_parent">
-
-        <View android:id="@+id/guideTop"
-            android:layout_width="match_parent" android:layout_height="2dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="560dp"
-            android:background="#FFFFFFFF" />
-
-        <View android:id="@+id/guideBottom"
-            android:layout_width="match_parent" android:layout_height="2dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="2000dp"
-            android:background="#FFFFFFFF" />
-    </FrameLayout>
+    <!-- 3:4 取景框：仅上下两条横线（与基准相机页一致） -->
+    <View
+        android:layout_width="match_parent" android:layout_height="2dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="660dp"
+        android:background="#FFFFFFFF" />
+    <View
+        android:layout_width="match_parent" android:layout_height="2dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="1860dp"
+        android:background="#FFFFFFFF" />
 
     <TextView
         android:id="@+id/capHint"
@@ -30,6 +25,7 @@
         android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="300dp"
         android:text="@string/cap_hint" android:textColor="#FFFFFF" android:textSize="20sp" />
 
+    <!-- 紫色胶囊大按钮：位置/尺寸/颜色与基准一致，仅文案改为「拍照识别」 -->
     <Button android:id="@+id/btnShot"
         android:layout_width="320dp" android:layout_height="64dp"
         android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="150dp"
@@ -37,7 +33,7 @@
         android:text="@string/cap_shot" android:textColor="#FFFFFF" android:textSize="20sp"
         android:textStyle="bold" />
 
-    <!-- 右下角相册入口 -->
+    <!-- 新增：右下角靠近侧边栏的相册入口（图标 + 文字） -->
     <LinearLayout
         android:id="@+id/btnAlbum"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -54,20 +50,4 @@
             android:text="相册" android:textColor="#FFFFFF" android:textSize="14sp"
             android:layout_marginTop="2dp" />
     </LinearLayout>
-
-    <!-- 识别中遮罩 -->
-    <FrameLayout android:id="@+id/loadingOverlay"
-        android:layout_width="match_parent" android:layout_height="match_parent"
-        android:background="#CC000000" android:visibility="gone"
-        android:clickable="true" android:focusable="true">
-        <LinearLayout
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:orientation="vertical" android:gravity="center"
-            android:layout_gravity="center">
-            <ProgressBar android:layout_width="56dp" android:layout_height="56dp" />
-            <TextView android:id="@+id/tvLoading"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginTop="12dp" android:textColor="#FFFFFF" android:textSize="16sp" />
-        </LinearLayout>
-    </FrameLayout>
 </FrameLayout>
