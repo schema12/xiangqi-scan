@@ -45,6 +45,22 @@ public class GameController implements EngineListener, SearchListener {
     private long searchEndTime;
 
     public boolean isComputerPlaying = true;
+
+    /** 执棋模式：0=人执红·电脑执黑 1=红黑双人 2=人执黑·电脑执红 */
+    public int playerMode = 0;
+    /** 人执红？(false=人执黑，电脑执红) */
+    public boolean humanPlaysRed = true;
+
+    /** 现在轮到引擎出子？= 电脑开启 且 轮走方不是人执的一侧 */
+    public boolean isEngineTurnNow() {
+        boolean redToMove = game != null && game.currentBoard != null && game.currentBoard.bRedGo;
+        return isComputerPlaying && (redToMove != humanPlaysRed);
+    }
+
+    /** 现在轮到人出子？(双人模式恒为真) */
+    public boolean isHumanTurnNow() {
+        return !isEngineTurnNow();
+    }
     public boolean isAutoPlay = true;
 
     public boolean isShowTrends = false;
@@ -130,6 +146,7 @@ public class GameController implements EngineListener, SearchListener {
         game = new Game(settings.getRed_go_first());
         player.stopSearch();
         player.uciNewGame();
+        maybeEngineForward();
     }
 
     public synchronized void startFENGame(String fen) {
@@ -154,10 +171,32 @@ public class GameController implements EngineListener, SearchListener {
         gui.onGameEvent(GameStatus.UPDATEUI, "从FEN开局");
         player.stopSearch();
         player.uciNewGame();
+        // 若开局即轮到电脑（含人执黑等模式），自动出手
+        maybeEngineForward();
     }
 
     public synchronized void toggleComputer() {
         isComputerPlaying = !isComputerPlaying;
+    }
+
+    /** 执棋模式三态循环：人执红·电脑执黑 → 红黑双人 → 人执黑·电脑执红 */
+    public synchronized int cyclePlayerMode() {
+        playerMode = (playerMode + 1) % 3;
+        isComputerPlaying = (playerMode != 1);
+        humanPlaysRed = (playerMode != 2);
+        // 中途切换：停掉进行中的搜索，并把状态复位为当前轮走方
+        if (player != null) player.stopSearch();
+        if (game != null && game.currentBoard != null) {
+            setSatate(game.currentBoard.bRedGo);
+        }
+        return playerMode;
+    }
+
+    /** 轮到引擎时让它出手（自动走棋开启时） */
+    public void maybeEngineForward() {
+        if (isAutoPlay && isEngineTurnNow()) {
+            mainHandler.postDelayed(this::computerForward, 500);
+        }
     }
 
     public synchronized void toggleComputerAutoPlay() {
@@ -205,9 +244,9 @@ public class GameController implements EngineListener, SearchListener {
             gui.onGameEvent(GameStatus.ILLEGAL, GAME_OVER_HINT);
             return;
         }
-        if (state == ControllerState.WAITING_FOR_USER) {
-            // play only plays the black
-            gui.onGameEvent(GameStatus.ILLEGAL, "该红方出子");
+        if (!isEngineTurnNow()) {
+            // 轮到人出子（或对局结束等）
+            gui.onGameEvent(GameStatus.ILLEGAL, "该你出子");
             return;
         }
         if (state != ControllerState.WAITING_FOR_ENGINE) {
@@ -246,30 +285,29 @@ public class GameController implements EngineListener, SearchListener {
     }
 
     public synchronized void computerAskForMultiPV() {
-        if (state == ControllerState.WAITING_FOR_ENGINE_MULTIPV) {
+        if (state == ControllerState.WAITING_FOR_ENGINE_MULTIPV
+                || state == ControllerState.WAITING_FOR_USER_MULTIPV) {
             gui.onGameEvent(GameStatus.ILLEGAL, "搜索变着中,请稍候或闪电出着");
             return;
         }
         if (state == ControllerState.WAITING_FOR_ENGINE_BESTMV) {
-            // play only plays the black
             gui.onGameEvent(GameStatus.ILLEGAL, "电脑正在出着,请稍候或闪电出着");
             return;
         }
 
-        // 判断当前的状态，如果是红方出着，那么悔棋一步；如果无法悔棋，则无法变着
-        if (state == ControllerState.WAITING_FOR_USER) {
-            // undo
+        // 变着=撤销引擎上一步再让它重想：仅当现在轮到引擎出子时才有意义
+        if (!isEngineTurnNow()) {
             boolean result = stepBack();
             if (!result) {
-                gui.onGameEvent(GameStatus.ILLEGAL, "该红方出着，无法变着");
+                gui.onGameEvent(GameStatus.ILLEGAL, "无着可变");
                 return;
             }
         }
 
         // 最后检查目前的状态是否是等待引擎出着
-        if (state != ControllerState.WAITING_FOR_ENGINE) {
+        if (!isEngineTurnNow()) {
             Log.d("GameController", "Invalid state, computerAskForMultiPV should not be called now." + state);
-            gui.onGameEvent(GameStatus.ILLEGAL, "黑方出招时方可变着");
+            gui.onGameEvent(GameStatus.ILLEGAL, "轮到引擎出招时方可变着");
             return;
         }
 
@@ -279,7 +317,8 @@ public class GameController implements EngineListener, SearchListener {
         } else {
             gui.onGameEvent(GameStatus.UPDATEUI, "搜索变着中...");
         }
-        state = ControllerState.WAITING_FOR_ENGINE_MULTIPV;
+        state = isRedTurn() ? ControllerState.WAITING_FOR_USER_MULTIPV
+                            : ControllerState.WAITING_FOR_ENGINE_MULTIPV;
         multiPVs = Collections.emptyList();
 
         // trigger searchrequest, engine will call notifySearchResult for bestmove
@@ -288,13 +327,12 @@ public class GameController implements EngineListener, SearchListener {
 
 
     public synchronized void playerAskForHelp() {
-        if (state == ControllerState.WAITING_FOR_USER_MULTIPV) {
-            // play only plays the black
+        if (state == ControllerState.WAITING_FOR_USER_MULTIPV
+                || state == ControllerState.WAITING_FOR_ENGINE_MULTIPV) {
             gui.onGameEvent(GameStatus.ILLEGAL, "正在寻求帮助，请稍候或闪电出着");
             return;
         }
-        if (state != ControllerState.WAITING_FOR_USER) {
-            // play only plays the black
+        if (!isHumanTurnNow()) {
             gui.onGameEvent(GameStatus.ILLEGAL, "己方出招时方可寻求帮助");
             return;
         }
@@ -305,7 +343,8 @@ public class GameController implements EngineListener, SearchListener {
         } else {
             gui.onGameEvent(GameStatus.UPDATEUI, "寻求帮助中...");
         }
-        state = ControllerState.WAITING_FOR_USER_MULTIPV;
+        state = isRedTurn() ? ControllerState.WAITING_FOR_USER_MULTIPV
+                            : ControllerState.WAITING_FOR_ENGINE_MULTIPV;
         multiPVs = Collections.emptyList();
 
         // trigger searchrequest, engine will call notifySearchResult for bestmove
@@ -386,13 +425,20 @@ public class GameController implements EngineListener, SearchListener {
                 }
 
                 int piece = game.currentBoard.getPieceByPosition(game.startPos);
-                // 确保棋子颜色和当前状态匹配
-                if (state == ControllerState.WAITING_FOR_USER && !Piece.isRed(piece)) {
+                // 确保棋子颜色和当前状态匹配（人机模式下轮到电脑时不允许人碰棋子）
+                if (isComputerPlaying && isEngineTurnNow()) {
+                    gui.onGameEvent(GameStatus.ILLEGAL, "电脑思考中，请稍候...");
+                    game.startPos = null;
+                    game.endPos = null;
+                    return;
+                }
+                boolean redToMove = state == ControllerState.WAITING_FOR_USER;
+                if (redToMove && !Piece.isRed(piece)) {
                     gui.onGameEvent(GameStatus.ILLEGAL, "该红方出着");
                     game.startPos = null;
                     game.endPos = null;
                     return;
-                } else if (state == ControllerState.WAITING_FOR_ENGINE && Piece.isRed(piece)) {
+                } else if (!redToMove && Piece.isRed(piece)) {
                     gui.onGameEvent(GameStatus.ILLEGAL, "该黑方出着");
                     game.startPos = null;
                     game.endPos = null;
@@ -674,7 +720,7 @@ public class GameController implements EngineListener, SearchListener {
         state = preEvalState;
 
         // auto nextstep for computer if applicable
-        if (isAutoPlay && isComputerPlaying && isBlackTurn()) {
+        if (isAutoPlay && isEngineTurnNow()) {
             // 因为要显示预测着法，所以让电脑延迟500s走棋
             mainHandler.postDelayed(this::computerForward, 500);
         }

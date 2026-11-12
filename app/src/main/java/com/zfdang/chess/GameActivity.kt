@@ -232,7 +232,15 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
     // create function to set status text
     fun setStatusText(text: String) {
         binding.statustv.text = text
-        binding.opponentLabel.text = if (controller.isComputerPlaying) "你执红 · 电脑执黑" else "红黑双方 · 人工执棋"
+    }
+
+    /** 按执棋模式更新副标题与按钮图标 */
+    private fun updatePlayerModeUi() {
+        when (controller.playerMode) {
+            0 -> { binding.playerbt.setImageResource(R.drawable.computer); binding.opponentLabel.text = "你执红 · 电脑执黑" }
+            1 -> { binding.playerbt.setImageResource(R.drawable.person); binding.opponentLabel.text = "红黑双人 · 人工执棋" }
+            2 -> { binding.playerbt.setImageResource(R.drawable.person); binding.opponentLabel.text = "你执黑 · 电脑执红" }
+        }
     }
 
     fun showNewGameConfirmDialog() {
@@ -329,13 +337,18 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         // handle events for all imagebuttons in activity_player.xml
         when(v) {
             binding.playerbt -> {
-                controller.toggleComputer()
-                if(controller.isComputerPlaying){
-                    binding.playerbt.setImageResource(R.drawable.computer)
-                    setStatusText("切换为电脑执黑棋")
+                val mode = controller.cyclePlayerMode()
+                updatePlayerModeUi()
+                when (mode) {
+                    0 -> { chessView.setFlipped(false); setStatusText("执棋模式：你执红 · 电脑执黑") }
+                    1 -> setStatusText("执棋模式：红黑双人 · 人工执棋")
+                    2 -> { chessView.setFlipped(true); setStatusText("执棋模式：你执黑 · 电脑执红（棋盘已翻转）") }
+                }
+                // 模式切换后：轮到引擎则让它出手，轮到人则停掉残留搜索
+                if (controller.isEngineTurnNow()) {
+                    controller.maybeEngineForward()
                 } else {
-                    binding.playerbt.setImageResource(R.drawable.person)
-                    setStatusText("切换为人工执黑棋")
+                    controller.stopSearchNow()
                 }
             }
             binding.playerbackbt -> {
