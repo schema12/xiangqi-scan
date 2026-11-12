@@ -186,7 +186,16 @@ public class GameController implements EngineListener, SearchListener {
 
     /** 轮到引擎时让它出手（自动走棋开启时） */
     public void maybeEngineForward() {
+        GcLog.d("maybeEngineForward: auto=" + isAutoPlay + " engineTurn=" + isEngineTurnNow());
         if (isAutoPlay && isEngineTurnNow()) {
+            mainHandler.postDelayed(this::computerForward, 500);
+        }
+    }
+
+    /** 执棋权刚移交引擎（切换执棋模式）时立即出手，不受自动走棋开关限制 */
+    public void forceEngineForward() {
+        GcLog.d("forceEngineForward: engineTurn=" + isEngineTurnNow() + " auto=" + isAutoPlay);
+        if (isEngineTurnNow()) {
             mainHandler.postDelayed(this::computerForward, 500);
         }
     }
@@ -424,7 +433,22 @@ public class GameController implements EngineListener, SearchListener {
     public void touchPosition(@NotNull Position pos) {
         if (game.startPos == null) {
             // start position is empty
-            if (Piece.isValid(game.currentBoard.getPieceByPosition(pos))) {
+            int piece = game.currentBoard.getPieceByPosition(pos);
+            if (Piece.isValid(piece)) {
+                // 引擎回合不允许选子（如电脑执红先走前选黑子），与走子校验保持同一口径
+                if (isComputerPlaying && isEngineTurnNow()) {
+                    gui.onGameEvent(GameStatus.ILLEGAL, "等待对方出招");
+                    return;
+                }
+                // 选子阶段即校验颜色：轮到谁走只能选谁的子
+                boolean redToMove = game.currentBoard.bRedGo;
+                if (redToMove && !Piece.isRed(piece)) {
+                    gui.onGameEvent(GameStatus.ILLEGAL, "该红方出着");
+                    return;
+                } else if (!redToMove && Piece.isRed(piece)) {
+                    gui.onGameEvent(GameStatus.ILLEGAL, "该黑方出着");
+                    return;
+                }
                 // and the piece is valid
                 game.setStartPos(pos);
                 gui.onGameEvent(GameStatus.SELECT, "选择棋子");
@@ -793,6 +817,8 @@ public class GameController implements EngineListener, SearchListener {
             game = Game.loadFromFile(ChessApp.getContext());
             setSatate(game.currentBoard.bRedGo);
             Log.d("GameController", "Game status loaded");
+            // 恢复对局时若轮到引擎（含电脑执红先走），自动出手
+            maybeEngineForward();
         } catch (IOException e) {
             Log.e("GameController", "Failed to load game status: " + e);
         } catch (ClassNotFoundException e) {

@@ -344,9 +344,9 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
                     1 -> setStatusText("执棋模式：红黑双人 · 人工执棋")
                     2 -> { chessView.setFlipped(true); setStatusText("执棋模式：你执黑 · 电脑执红（棋盘已翻转）") }
                 }
-                // 模式切换后：轮到引擎则让它出手，轮到人则停掉残留搜索
+                // 模式切换后：轮到引擎则让它出手（不受自动走棋开关限制），轮到人则停掉残留搜索
                 if (controller.isEngineTurnNow()) {
-                    controller.maybeEngineForward()
+                    controller.forceEngineForward()
                 } else {
                     controller.stopSearchNow()
                 }
