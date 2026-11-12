@@ -56,6 +56,7 @@ class ScanActivity : AppCompatActivity() {
         board.onPiecePick = { ch -> onPiecePicked(ch) }
 
         findViewById<Button>(R.id.btnStartGame).setOnClickListener { startGame() }
+        findViewById<Button>(R.id.btnFlip).setOnClickListener { flipBoard() }
         findViewById<Button>(R.id.btnCopyFen).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("FEN", fen))
@@ -124,16 +125,17 @@ class ScanActivity : AppCompatActivity() {
         val ch = grid[r][c]
         if (selectedCell >= 0) {
             val sr = selectedCell / 9; val sc = selectedCell % 9
+            val moving = grid[sr][sc]
             if (idx == selectedCell) {
                 // 再点同一个棋子 → 收起（棋子从棋盘消失）
                 grid[sr][sc] = '.'
-            } else if (ch == '.') {
-                // 点空地 → 把选中的棋子移动过去
-                grid[r][c] = grid[sr][sc]
-                grid[sr][sc] = '.'
             } else {
-                // 点有子的格 → 收起该目标子，把选中的棋子放到这里
-                grid[r][c] = grid[sr][sc]
+                // 点空地/有子格 → 校验目标位置，然后把选中棋子放过去
+                placementError(moving, r, c)?.let {
+                    Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                    return
+                }
+                grid[r][c] = moving
                 grid[sr][sc] = '.'
             }
             selectedCell = -1
@@ -159,10 +161,47 @@ class ScanActivity : AppCompatActivity() {
         }
     }
 
+    /** 棋子可摆放位置校验：违反规则返回错误提示（null=可摆放） */
+    private fun placementError(ch: Char, r: Int, c: Int): String? {
+        val name = pieceName(ch)
+        val red = ch.isUpperCase()
+        val lower = ch.lowercaseChar()
+        return when (lower) {
+            // 将/帅、士/仕：只能在己方九宫（列 3..5；红行 7..9，黑行 0..2）
+            'k', 'a' -> {
+                val okC = c in 3..5
+                val okR = if (red) r >= 7 else r <= 2
+                if (!okC || !okR) "${name}不能摆在这里" else null
+            }
+            // 相/象：不能过河（红行>=5，黑行<=4）
+            'b' -> {
+                val ok = if (red) r >= 5 else r <= 4
+                if (!ok) "${name}不能摆在这里" else null
+            }
+            // 兵/卒：不能摆在己方底线之前（红不能在行 0..2 即对方九宫底线? 放宽：不能退到底线之后）
+            // 按标准：兵卒未过河不能后退，但摆棋允许自由摆；仅禁止出现在对方底线行
+            'p' -> {
+                val ok = if (red) r >= 1 else r <= 8
+                if (!ok) "${name}不能摆在这里" else null
+            }
+            else -> null
+        }
+    }
+
+    private fun pieceName(ch: Char): String = when (ch) {
+        'K' -> "帅"; 'A' -> "仕"; 'B' -> "相"; 'N' -> "马"; 'R' -> "车"; 'C' -> "炮"; 'P' -> "兵"
+        'k' -> "将"; 'a' -> "士"; 'b' -> "象"; 'n' -> "马"; 'r' -> "车"; 'c' -> "炮"; 'p' -> "卒"
+        else -> "棋子"
+    }
+
     private fun onPiecePicked(ch: Char) {
         val anchor = board.popupAnchor
         if (anchor < 0) return
         val r = anchor / 9; val c = anchor % 9
+        placementError(ch, r, c)?.let {
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+            return
+        }
         grid[r][c] = ch
         board.grid = grid
         board.hidePopup()
@@ -189,6 +228,20 @@ class ScanActivity : AppCompatActivity() {
             parts.add(sb.toString())
         }
         return parts.joinToString("/") + " w - - 0 1"
+    }
+
+    /** 翻转棋盘：画面红在上时用户手动翻转（棋子颜色不变，仅位置 180°） */
+    private fun flipBoard() {
+        val g = Array(10) { CharArray(9) { '.' } }
+        for (r in 0 until 10) for (c in 0 until 9) {
+            g[r][c] = grid[9 - r][8 - c]
+        }
+        grid = g
+        board.grid = grid
+        board.selected = -1
+        selectedCell = -1
+        board.hidePopup()
+        updateFen()
     }
 
     private fun startGame() {

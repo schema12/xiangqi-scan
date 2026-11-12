@@ -142,9 +142,10 @@ class BoardEditView @JvmOverloads constructor(
             }
         }
 
-        // 选中四角直角标记（参照效果图的红色 L 形角）
-        if (selected >= 0) {
-            val r = selected / 9; val c = selected % 9
+        // 选中四角直角标记：选中的棋子格，或点空地弹出悬浮窗时该空地
+        val cornerCell = if (selected >= 0) selected else popupAnchor
+        if (cornerCell >= 0) {
+            val r = cornerCell / 9; val c = cornerCell % 9
             drawCorners(canvas, cellX(c), cellY(r))
         }
 

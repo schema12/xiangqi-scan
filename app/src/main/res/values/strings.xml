@@ -5,6 +5,7 @@
     <string name="rec_failed">识别失败，请重试或换一张图</string>
     <string name="rec_start_game">从此局面开始对弈</string>
     <string name="rec_copy_fen">复制 FEN</string>
+    <string name="rec_flip">翻转棋盘</string>
     <string name="app_name">Chinese Chess</string>
     <string name="title_activity_play">PlayActivity</string>
     <string name="dummy_button">Dummy Button</string>
