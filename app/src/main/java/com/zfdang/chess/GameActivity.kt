@@ -66,9 +66,6 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         val path = r.data?.getStringExtra(CaptureActivity.EXTRA_PATH)
         if (path != null) openScan(path, null)
     }
-    private val pickImage = registerForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri -> uri?.let { openScan(null, it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -132,7 +129,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
             binding.choice1bt,
             binding.choice2bt,
             binding.choice3bt,
-            binding.scanbt
+            binding.scanbt,
+            binding.flipbt
         )
         for (button in imageButtons) {
             button.setOnClickListener(this)
@@ -285,19 +283,6 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         finish()
     }
 
-    /** 识别摆谱：拍照 / 相册（含截图） */
-    private fun showScanSourceDialog() {
-        AlertDialog.Builder(this)
-            .setItems(arrayOf("拍照识别", "相册 / 截图选图")) { _, w ->
-                when (w) {
-                    0 -> captureLauncher.launch(Intent(this, CaptureActivity::class.java))
-                    1 -> pickImage.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }
-            }
-            .show()
-    }
-
     private fun openScan(path: String?, uri: Uri?) {
         val i = Intent(this, ScanActivity::class.java)
         if (path != null) i.putExtra(ScanActivity.EXTRA_PATH, path)
@@ -396,7 +381,12 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
                 controller.stepBack()
             }
             binding.scanbt -> {
-                showScanSourceDialog()
+                // 直接进相机页（相册入口在相机页右下角）
+                captureLauncher.launch(Intent(this, CaptureActivity::class.java))
+            }
+            binding.flipbt -> {
+                chessView.setFlipped(!chessView.isFlipped())
+                setStatusText(if (chessView.isFlipped()) "棋盘已翻转" else "棋盘已复位")
             }
             binding.importbt -> {
                 showInputFENDialog()

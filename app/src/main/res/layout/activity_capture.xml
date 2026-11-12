@@ -1,34 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="#FF000000">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/preview"
         android:layout_width="match_parent" android:layout_height="match_parent" />
 
-    <!-- 3:4 引导框（棋盘对准此框） -->
-    <View
-        android:layout_width="300dp" android:layout_height="400dp"
-        android:layout_gravity="center"
-        android:background="#3A000000" />
-    <View
-        android:layout_width="300dp" android:layout_height="2dp"
-        android:layout_gravity="center" android:layout_marginBottom="200dp"
-        android:background="#CCFFFFFF" />
-    <View
-        android:layout_width="300dp" android:layout_height="2dp"
-        android:layout_gravity="center" android:layout_marginTop="200dp"
-        android:background="#CCFFFFFF" />
+    <!-- 上下两条横线界定 3:4 取景框（图二效果） -->
+    <FrameLayout
+        android:layout_width="match_parent" android:layout_height="match_parent">
+
+        <View android:id="@+id/guideTop"
+            android:layout_width="match_parent" android:layout_height="2dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="560dp"
+            android:background="#FFFFFFFF" />
+
+        <View android:id="@+id/guideBottom"
+            android:layout_width="match_parent" android:layout_height="2dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="2000dp"
+            android:background="#FFFFFFFF" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/capHint"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="96dp"
-        android:textColor="#FFFFFF" android:textSize="14sp" />
+        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="300dp"
+        android:text="@string/cap_hint" android:textColor="#FFFFFF" android:textSize="20sp" />
 
     <Button android:id="@+id/btnShot"
+        android:layout_width="320dp" android:layout_height="64dp"
+        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="150dp"
+        android:background="@drawable/bg_capture_btn"
+        android:text="@string/cap_shot" android:textColor="#FFFFFF" android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- 右下角相册入口 -->
+    <LinearLayout
+        android:id="@+id/btnAlbum"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="32dp"
-        android:minWidth="160dp" android:text="@string/cap_shot" />
+        android:layout_gravity="bottom|end" android:layout_marginEnd="48dp"
+        android:layout_marginBottom="140dp"
+        android:orientation="vertical" android:gravity="center"
+        android:clickable="true" android:focusable="true"
+        android:background="?android:attr/selectableItemBackgroundBorderless">
+        <ImageView
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:src="@drawable/ic_album" />
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="相册" android:textColor="#FFFFFF" android:textSize="14sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <!-- 识别中遮罩 -->
+    <FrameLayout android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="#CC000000" android:visibility="gone"
+        android:clickable="true" android:focusable="true">
+        <LinearLayout
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center"
+            android:layout_gravity="center">
+            <ProgressBar android:layout_width="56dp" android:layout_height="56dp" />
+            <TextView android:id="@+id/tvLoading"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" android:textColor="#FFFFFF" android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>

@@ -72,6 +72,21 @@ public class ChessView extends SurfaceView implements SurfaceHolder.Callback {
 
     public GameController controller;
 
+    /** 棋盘翻转：红黑视角互换（对局中随时可切换），绘制/触摸均做 180° 映射 */
+    private boolean flipped = false;
+
+    public boolean isFlipped() { return flipped; }
+
+    public void setFlipped(boolean f) {
+        // 绘制线程每 100ms 自动重绘，设置标志即可
+        this.flipped = f;
+    }
+
+    /** 逻辑坐标 → 翻转后的绘制坐标 */
+    private int fx(int x) { return flipped ? Board.BOARD_PIECE_WIDTH - 1 - x : x; }
+    private int fy(int y) { return flipped ? Board.BOARD_PIECE_HEIGHT - 1 - y : y; }
+
+
     public String[] thinkMood = new String[]{"😀", "🙂", "😶", "😣", "😵", "😭"};
     public int thinkIndex = 0;
     public int thinkFlag = 0;
@@ -150,7 +165,7 @@ public class ChessView extends SurfaceView implements SurfaceHolder.Callback {
                 int piece = board.getPieceByPosition(x, y);
                 if (Piece.isValid(piece)) {
                     // valid piece, draw the bitmap
-                    drawBitmap(canvas, PieceBitmaps[piece-1], getDestRect(x, y, tmpDestRect));
+                    drawBitmap(canvas, PieceBitmaps[piece-1], getDestRect(fx(x), fy(y), tmpDestRect));
                 }
             }
         }
@@ -160,12 +175,12 @@ public class ChessView extends SurfaceView implements SurfaceHolder.Callback {
             int piece = board.getPieceByPosition(startPos);
             if (Piece.isValid(piece)) {
                 // highlight selected piece
-                drawBitmap(canvas, Piece.isRed(piece) ? R_box : B_box, getDestRect(startPos.x, startPos.y, tmpDestRect));
+                drawBitmap(canvas, Piece.isRed(piece) ? R_box : B_box, getDestRect(fx(startPos.x), fy(startPos.y), tmpDestRect));
 
                 // draw all possible moves for selected piece
                 Bitmap pot = Piece.isRed(piece) ? R_pot : B_pot;
                 for (Position pos : game.possibleToPositions) {
-                    drawBitmap(canvas, pot, getDestRect(pos.x, pos.y, tmpDestRect));
+                    drawBitmap(canvas, pot, getDestRect(fx(pos.x), fy(pos.y), tmpDestRect));
                 }
             }
         }
@@ -278,8 +293,8 @@ public class ChessView extends SurfaceView implements SurfaceHolder.Callback {
 
     public XYCoord getCoordByPosition(Position pos) {
         int half = BOARD_PIECE_SIZE / 2;
-        return new XYCoord(Scale(pos.x * BOARD_GRID_INTERVAL + BOARD_X_OFFSET + half),
-                Scale(pos.y * BOARD_GRID_INTERVAL + BOARD_Y_OFFSET + half));
+        return new XYCoord(Scale(fx(pos.x) * BOARD_GRID_INTERVAL + BOARD_X_OFFSET + half),
+                Scale(fy(pos.y) * BOARD_GRID_INTERVAL + BOARD_Y_OFFSET + half));
     }
 
 
@@ -336,6 +351,11 @@ public class ChessView extends SurfaceView implements SurfaceHolder.Callback {
         Rect rect = getDestRect(ix, iy, new Rect());
         if(rect.contains((int)x, (int)y)) {
             Log.d("ChessView", "getPosByCoord: " + ix + ", " + iy);
+            // 翻转时把屏幕坐标映射回逻辑坐标
+            if (flipped) {
+                ix = Board.BOARD_PIECE_WIDTH - 1 - ix;
+                iy = Board.BOARD_PIECE_HEIGHT - 1 - iy;
+            }
             return new Position(ix, iy);
         } else {
             Log.d("ChessView", "getPosByCoord: " + "out of bound");

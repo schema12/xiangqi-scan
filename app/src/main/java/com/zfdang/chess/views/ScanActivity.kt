@@ -11,7 +11,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.zfdang.chess.GameActivity
 import com.zfdang.chess.R
@@ -30,7 +29,6 @@ class ScanActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_PATH = "path"
         const val EXTRA_URI = "uri"
-        private const val LOW_CONF_TH = 0.5f
         private const val MAX_DIM = 4096   // 实测全分辨率角点最稳，勿随意缩小
     }
 
@@ -54,7 +52,8 @@ class ScanActivity : AppCompatActivity() {
         overlay = findViewById(R.id.loadingOverlay)
         tvLoading = findViewById(R.id.tvLoading)
 
-        board.onCellTap = { r, c -> showPieceSelector(r, c) }
+        board.onCellTap = { r, c -> onCellTapped(r, c) }
+        board.onPiecePick = { ch -> onPiecePicked(ch) }
 
         findViewById<Button>(R.id.btnStartGame).setOnClickListener { startGame() }
         findViewById<Button>(R.id.btnCopyFen).setOnClickListener {
@@ -109,33 +108,65 @@ class ScanActivity : AppCompatActivity() {
         grid = r.grid
         fen = r.fen
         board.grid = grid
-        board.lowConf = r.confidences.mapIndexed { i, f -> if (f < LOW_CONF_TH) i else -1 }
-            .filter { it >= 0 }.toSet()
         updateFen()
-        tvConf.text = buildString {
-            append("置信度 ${(r.avgConfidence * 100).toInt()}% (${r.elapsedMs}ms)")
-            if (board.lowConf.isNotEmpty()) append(" · 低置信红框")
-        }
+        tvConf.text = "置信度 ${(r.avgConfidence * 100).toInt()}% (${r.elapsedMs}ms)"
         if (r.warnings.isNotEmpty()) {
             Toast.makeText(this, "注意: ${r.warnings.joinToString("；")}", Toast.LENGTH_LONG).show()
         }
     }
 
-    /** 点击交叉点 → 换/加/删子 */
-    private fun showPieceSelector(r: Int, c: Int) {
-        val items = listOf("空", "帅", "仕", "相", "马", "车", "炮", "兵",
-                           "将", "士", "象", "马", "车", "炮", "卒")
-        val chars = listOf('.', 'K', 'A', 'B', 'N', 'R', 'C', 'P',
-                           'k', 'a', 'b', 'n', 'r', 'c', 'p')
-        AlertDialog.Builder(this)
-            .setTitle("($r,$c) 放什么棋子")
-            .setItems(items.toTypedArray()) { _, w ->
-                grid[r][c] = chars[w]
-                board.grid = grid
-                board.lowConf = board.lowConf - (r * 9 + c)
-                updateFen()
+    // ---- 摆棋交互状态机 ----
+    // selectedCell: 已选中的棋子格（-1 无）；再点同一格=收起，点空格=移动，点有子格=替换
+    private var selectedCell = -1
+
+    private fun onCellTapped(r: Int, c: Int) {
+        val idx = r * 9 + c
+        val ch = grid[r][c]
+        if (selectedCell >= 0) {
+            val sr = selectedCell / 9; val sc = selectedCell % 9
+            if (idx == selectedCell) {
+                // 再点同一个棋子 → 收起（棋子从棋盘消失）
+                grid[sr][sc] = '.'
+            } else if (ch == '.') {
+                // 点空地 → 把选中的棋子移动过去
+                grid[r][c] = grid[sr][sc]
+                grid[sr][sc] = '.'
+            } else {
+                // 点有子的格 → 收起该目标子，把选中的棋子放到这里
+                grid[r][c] = grid[sr][sc]
+                grid[sr][sc] = '.'
             }
-            .show()
+            selectedCell = -1
+            board.selected = -1
+            board.grid = grid
+            board.hidePopup()
+            updateFen()
+            return
+        }
+        if (ch != '.') {
+            // 第一次点有子的格 → 选中，四角直角标记
+            selectedCell = idx
+            board.selected = idx
+            board.hidePopup()
+        } else {
+            // 点空地 → 展示可用棋子悬浮窗（按剩余数量动态过滤）
+            val available = board.computeAvailable()
+            if (available.isEmpty()) {
+                Toast.makeText(this, "没有可用棋子了", Toast.LENGTH_SHORT).show()
+            } else {
+                board.showPopup(idx, available)
+            }
+        }
+    }
+
+    private fun onPiecePicked(ch: Char) {
+        val anchor = board.popupAnchor
+        if (anchor < 0) return
+        val r = anchor / 9; val c = anchor % 9
+        grid[r][c] = ch
+        board.grid = grid
+        board.hidePopup()
+        updateFen()
     }
 
     private fun updateFen() {

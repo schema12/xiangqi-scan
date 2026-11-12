@@ -5,9 +5,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Size
+import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -22,8 +25,9 @@ import com.zfdang.chess.R
 import java.io.File
 
 /**
- * 拍照识别摆谱：CameraX 高清拍照（2560×1920 + 3:4 引导框），
- * JPEG 路径经 EXTRA_PATH 交给 ScanActivity 识别。
+ * 拍照识别摆谱（图二效果）：黑底相机预览 + 上下横线界定 3:4 取景框 +
+ * 紫色「拍照识别」大按钮 + 右下角相册/截图入口。
+ * 拍照或选图后统一交给 [ScanActivity] 识别。
  */
 class CaptureActivity : AppCompatActivity() {
 
@@ -45,6 +49,17 @@ class CaptureActivity : AppCompatActivity() {
         }
     }
 
+    private val pickImage = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            startActivity(Intent(this, ScanActivity::class.java).apply {
+                putExtra(ScanActivity.EXTRA_URI, it.toString())
+            })
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_capture)
@@ -52,6 +67,9 @@ class CaptureActivity : AppCompatActivity() {
         btnShot = findViewById(R.id.btnShot)
         findViewById<TextView>(R.id.capHint).text = getString(R.string.cap_hint)
         btnShot.setOnClickListener { takePhoto() }
+        findViewById<LinearLayout>(R.id.btnAlbum).setOnClickListener {
+            pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
@@ -96,7 +114,9 @@ class CaptureActivity : AppCompatActivity() {
         capture.takePicture(opts, ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(out: ImageCapture.OutputFileResults) {
-                    setResult(RESULT_OK, Intent().putExtra(EXTRA_PATH, file.absolutePath))
+                    startActivity(Intent(this@CaptureActivity, ScanActivity::class.java).apply {
+                        putExtra(ScanActivity.EXTRA_PATH, file.absolutePath)
+                    })
                     finish()
                 }
 

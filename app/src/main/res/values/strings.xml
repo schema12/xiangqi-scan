@@ -1,5 +1,5 @@
 <resources>
-    <string name="cap_shot">拍照</string>
+    <string name="cap_shot">拍照识别</string>
     <string name="cap_hint">棋盘对准 3:4 框内拍摄</string>
     <string name="rec_loading">正在识别棋盘…</string>
     <string name="rec_failed">识别失败，请重试或换一张图</string>
