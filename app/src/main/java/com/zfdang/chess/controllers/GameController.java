@@ -545,11 +545,12 @@ public class GameController implements EngineListener, SearchListener {
             return;
         }
 
-        // check piece color to move
+        // check piece color to move（按真实轮走方 bRedGo 判断，兼容人执黑/电脑执红）
         int piece = game.currentBoard.getPieceByPosition(game.startPos);
-        if (Piece.isRed(piece) != isRedTurn()) {
+        boolean redToMove = game.currentBoard.bRedGo;
+        if (Piece.isRed(piece) != redToMove) {
             Log.e("GameController", "Invalid move, piece color is not match");
-            if (isRedTurn()) {
+            if (redToMove) {
                 gui.onGameEvent(GameStatus.ILLEGAL, "该红方出着");
             } else {
                 gui.onGameEvent(GameStatus.ILLEGAL, "该黑方出着");
