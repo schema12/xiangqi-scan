@@ -18,13 +18,8 @@ fun gitVersion(): Int {
 android {
     namespace = "com.zfdang.chess"
     compileSdk = 36
-    ndkVersion = libs.versions.ndk.get()
-
-    externalNativeBuild {
-        ndkBuild {
-            path = file("src/main/cpp/Android.mk")
-        }
-    }
+    // 引擎使用官方 release 预编译库（app/src/main/jniLibs，来自 ChessFish 官方发行包），
+    // 不再进行源生编译：构建更轻且引擎版本与官方发布完全一致
 
     buildFeatures {
         buildConfig = true
@@ -50,6 +45,11 @@ android {
         // Caveat: this applies to ALL android.* stubs (they return 0/false/null instead of throwing),
         // so unit tests must not rely on any other Android API behaviour.
         unitTests.isReturnDefaultValues = true
+    }
+
+    androidResources {
+        // 27,542 个 XQF 棋谱小文件逐个 deflate 过慢，改为 STORED 直存
+        noCompress += listOf("xqf", "XQF", "onnx", "nnue", "db")
     }
 
     packaging {
