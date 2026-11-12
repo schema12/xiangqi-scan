@@ -218,11 +218,14 @@ public class ComputerPlayer {
      * Start to search.
      */
     public final synchronized void queueSearchRequest(SearchRequest sr) {
+        com.zfdang.chess.controllers.GcLog.d("CP.queueSearchRequest: state=" + engineState.state + " engine=" + engineState.engineName);
         killOldEngine(sr.engineName);
         stopSearch();
+        com.zfdang.chess.controllers.GcLog.d("CP.queueSearchRequest: after stop, state=" + engineState.state);
 
         searchRequest = sr;
         handleQueue();
+        com.zfdang.chess.controllers.GcLog.d("CP.queueSearchRequest: after handleQueue, state=" + engineState.state);
     }
 
     private void handleQueue() {
@@ -297,9 +300,12 @@ public class ComputerPlayer {
      */
     private void handleIdleState() {
         Log.d("ComputerPlayer", "handleIdleState: ");
+        com.zfdang.chess.controllers.GcLog.d("CP.handleIdleState: state=" + engineState.state + " uci=" + (uciEngine != null));
         SearchRequest sr = searchRequest;
-        if (sr == null)
+        if (sr == null) {
+            com.zfdang.chess.controllers.GcLog.d("CP.handleIdleState: sr==null, return");
             return;
+        }
 
         // Make sure correct engine is running
         if ((uciEngine == null) || !engineState.engineName.equals(sr.engineName)) {
@@ -310,6 +316,7 @@ public class ComputerPlayer {
 
         // Send "ucinewgame" if needed
         if (newGame) {
+            com.zfdang.chess.controllers.GcLog.d("CP.handleIdleState: send ucinewgame");
             uciEngine.writeLineToEngine("ucinewgame");
             uciEngine.writeLineToEngine("isready");
             engineState.setState(EngineStateValue.WAIT_READY);
@@ -332,6 +339,7 @@ public class ComputerPlayer {
 
         engineState.searchId = searchRequest.searchId;
 
+        com.zfdang.chess.controllers.GcLog.d("CP.handleIdleState: sending position+go");
         if (sr.isSearch){
             // Set strength and MultiPV parameters
             clearInfo();
@@ -396,8 +404,10 @@ public class ComputerPlayer {
         myAssert(engineState.state == EngineStateValue.DEAD);
         myAssert(searchRequest != null);
 
+        com.zfdang.chess.controllers.GcLog.d("CP.startEngine: starting");
         uciEngine = UCIEngineBase.getEngine(searchRequest.engineName, engineConfig, engineListener);
         uciEngine.initialize();
+        com.zfdang.chess.controllers.GcLog.d("CP.startEngine: initialized");
 
         final UCIEngine uci = uciEngine;
         engineMonitor = new Thread(() -> monitorLoop(uci));
@@ -457,6 +467,10 @@ public class ComputerPlayer {
 
         if (s.length() == 0)
             return;
+        if (s.startsWith("bestmove") || s.startsWith("readyok") || s.startsWith("uciok")
+                || s.contains(" info ") || s.startsWith("info")) {
+            com.zfdang.chess.controllers.GcLog.d("UCI<-: " + s.substring(0, Math.min(120, s.length())));
+        }
 
 //        Log.d("ComputerPlayer", "processEngineOutput: " + " state: " + engineState.state + " s: " + s);
         switch (engineState.state) {

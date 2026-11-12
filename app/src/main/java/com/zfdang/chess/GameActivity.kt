@@ -363,8 +363,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
                     binding.autoplaybt.setImageResource(R.drawable.play_circle)
                     setStatusText("开启自动走棋")
 
-                    if(controller.isBlackTurn() && controller.isComputerPlaying){
-                        // 如果电脑执黑，自动走棋
+                    if(controller.isEngineTurnNow()){
+                        // 轮到电脑（任意执棋方），自动走棋
                         controller.computerForward();
                     }
                 } else {

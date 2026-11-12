@@ -138,11 +138,7 @@ public class GameController implements EngineListener, SearchListener {
 
     public synchronized void startNewGame() {
         Log.d("GameController", "New game");
-        if (settings.getRed_go_first()) {
-            state = ControllerState.WAITING_FOR_USER;
-        } else {
-            state = ControllerState.WAITING_FOR_ENGINE;
-        }
+        setSatate(settings.getRed_go_first());
         game = new Game(settings.getRed_go_first());
         player.stopSearch();
         player.uciNewGame();
@@ -160,11 +156,7 @@ public class GameController implements EngineListener, SearchListener {
         }
 
         game = tempGame;
-        if (game.currentBoard.bRedGo) {
-            state = ControllerState.WAITING_FOR_USER;
-        } else {
-            state = ControllerState.WAITING_FOR_ENGINE;
-        }
+        setSatate(game.currentBoard.bRedGo);
         game.clearHistory();
         game.startPos = null;
         game.endPos = null;
@@ -203,16 +195,19 @@ public class GameController implements EngineListener, SearchListener {
         isAutoPlay = !isAutoPlay;
     }
 
+    /** 当前轮走颜色（以棋盘 bRedGo 为准，与执棋方解耦） */
     public boolean isRedTurn() {
-        return state == ControllerState.WAITING_FOR_USER;
+        return game != null && game.currentBoard != null && game.currentBoard.bRedGo;
     }
 
     public boolean isBlackTurn() {
-        return state == ControllerState.WAITING_FOR_ENGINE;
+        return game != null && game.currentBoard != null && !game.currentBoard.bRedGo;
     }
 
     public synchronized void setSatate(boolean isRedTurn) {
-        if (isRedTurn) {
+        // WAITING_FOR_USER=轮到人出子，WAITING_FOR_ENGINE=轮到引擎出子；
+        // 由 humanPlaysRed 推导，不再把红方硬编码为人
+        if (isRedTurn == humanPlaysRed) {
             state = ControllerState.WAITING_FOR_USER;
         } else {
             state = ControllerState.WAITING_FOR_ENGINE;
@@ -239,13 +234,18 @@ public class GameController implements EngineListener, SearchListener {
 
     // computer to play his turn
     public synchronized void computerForward() {
+        GcLog.d("computerForward enter: closed=" + closed + " state=" + state
+                + " bRedGo=" + (game != null && game.currentBoard != null ? game.currentBoard.bRedGo : null)
+                + " engineTurn=" + isEngineTurnNow() + " auto=" + isAutoPlay);
         if (closed) return;
         if (game.isGameOver) {
+            GcLog.d("computerForward: game over");
             gui.onGameEvent(GameStatus.ILLEGAL, GAME_OVER_HINT);
             return;
         }
         if (!isEngineTurnNow()) {
             // 轮到人出子（或对局结束等）
+            GcLog.d("computerForward: not engine turn, skip");
             gui.onGameEvent(GameStatus.ILLEGAL, "该你出子");
             return;
         }
@@ -256,23 +256,50 @@ public class GameController implements EngineListener, SearchListener {
         }
 
         if(settings.getOpenbook()) {
-            // search openbook first
-            gui.onGameEvent(GameStatus.UPDATEUI, "检索开局库...");
-
-            long vkey = game.currentBoard.getZobrist(isRedTurn());
-            List<BookData> bookData = bhBook.query(vkey, isRedTurn(), OpenBook.SortRule.BEST_SCORE);
-            if (bookData != null && bookData.size() > 0) {
-                int idx = 0;
-                if(game.currentBoard.rounds <= random_before_max_rounds && settings.getRandom_move()) {
-                    // 如果在前12步，那么可以随机选择一个着法
-                    idx =  (int) (Math.random() * bookData.size());
+            // 开局库查询挪到后台线程（120MB 大库无索引首次查询慢，不能阻塞主线程）
+            // 查询命中：电脑直接走子；未命中/异常：回到主线程正常搜索
+            final boolean redGo = isRedTurn();
+            new Thread(() -> {
+                List<BookData> bookData = null;
+                try {
+                    GcLog.d("openbook query start");
+                    long vkey = game.currentBoard.getZobrist(redGo);
+                    bookData = bhBook.query(vkey, redGo, OpenBook.SortRule.BEST_SCORE);
+                } catch (Throwable t) {
+                    GcLog.d("openbook query failed: " + t);
                 }
-                Log.d("GameController", "Openbook hit: size = " + bookData.size() + "; bestmove = " + bookData.get(0).getMove() + "; currentMove = " + bookData.get(idx).getMove());
-                computerMovePiece(bookData.get(idx).getMove());
-                return;
-            }
+                final List<BookData> hit = bookData;
+                mainHandler.post(() -> {
+                    if (hit != null && hit.size() > 0) {
+                        int idx = 0;
+                        if(game.currentBoard.rounds <= random_before_max_rounds && settings.getRandom_move()) {
+                            idx = (int) (Math.random() * hit.size());
+                        }
+                        GcLog.d("openbook hit: " + hit.size());
+                        computerMovePiece(hit.get(idx).getMove());
+                    } else {
+                        // 未命中开局库：正常发起引擎搜索
+                        startEngineSearch();
+                    }
+                });
+            }, "OpenbookQuery").start();
+            return;
         }
 
+        if (settings.getGo_infinite()) {
+            gui.onGameEvent(GameStatus.UPDATEUI, "无限搜索着法中, 须闪电出着!");
+        } else {
+            gui.onGameEvent(GameStatus.UPDATEUI, "搜索着法中...");
+        }
+        startEngineSearch();
+    }
+
+    /** 发起引擎搜索（openbook 未命中时由后台线程回调主线程执行） */
+    private void startEngineSearch() {
+        if (game.isGameOver) {
+            gui.onGameEvent(GameStatus.ILLEGAL, GAME_OVER_HINT);
+            return;
+        }
         if (settings.getGo_infinite()) {
             gui.onGameEvent(GameStatus.UPDATEUI, "无限搜索着法中, 须闪电出着!");
         } else {
@@ -317,8 +344,8 @@ public class GameController implements EngineListener, SearchListener {
         } else {
             gui.onGameEvent(GameStatus.UPDATEUI, "搜索变着中...");
         }
-        state = isRedTurn() ? ControllerState.WAITING_FOR_USER_MULTIPV
-                            : ControllerState.WAITING_FOR_ENGINE_MULTIPV;
+        // 引擎自己要求的变着搜索，结果由 notifySearchResult 按引擎分支处理
+        state = ControllerState.WAITING_FOR_ENGINE_MULTIPV;
         multiPVs = Collections.emptyList();
 
         // trigger searchrequest, engine will call notifySearchResult for bestmove
@@ -343,8 +370,8 @@ public class GameController implements EngineListener, SearchListener {
         } else {
             gui.onGameEvent(GameStatus.UPDATEUI, "寻求帮助中...");
         }
-        state = isRedTurn() ? ControllerState.WAITING_FOR_USER_MULTIPV
-                            : ControllerState.WAITING_FOR_ENGINE_MULTIPV;
+        // 人发起的帮助搜索，结果由 notifySearchResult 按用户分支处理
+        state = ControllerState.WAITING_FOR_USER_MULTIPV;
         multiPVs = Collections.emptyList();
 
         // trigger searchrequest, engine will call notifySearchResult for bestmove
@@ -366,11 +393,15 @@ public class GameController implements EngineListener, SearchListener {
                 false,
                 engineName,
                 numPV);
+        GcLog.d("queueSearch: searchId=" + searchId + " fen=" + startBoard.toFENString() + " moves=" + game.getMoveList().size());
         player.queueSearchRequest(sr);
+        GcLog.d("queueSearch: request queued");
     }
 
     public synchronized void evalCurrentBoard() {
+        com.zfdang.chess.controllers.GcLog.d("evalCurrentBoard enter: state=" + state);
         if (!(state == ControllerState.WAITING_FOR_USER || state == ControllerState.WAITING_FOR_ENGINE)) {
+            com.zfdang.chess.controllers.GcLog.d("evalCurrentBoard: bad state, skip");
             gui.onGameEvent(GameStatus.ILLEGAL, "等待出着时方可评估局面");
             return;
         }
@@ -432,7 +463,7 @@ public class GameController implements EngineListener, SearchListener {
                     game.endPos = null;
                     return;
                 }
-                boolean redToMove = state == ControllerState.WAITING_FOR_USER;
+                boolean redToMove = game.currentBoard.bRedGo;
                 if (redToMove && !Piece.isRed(piece)) {
                     gui.onGameEvent(GameStatus.ILLEGAL, "该红方出着");
                     game.startPos = null;
@@ -481,6 +512,7 @@ public class GameController implements EngineListener, SearchListener {
         Move move = new Move(game.currentBoard);
         boolean result = move.fromUCCIString(bestmove);
 
+        GcLog.d("computerMovePiece: bestmove=" + bestmove + " valid=" + result);
         if (result) {
             Log.d("GameController", "computer move: " + move.getChsString());
 
@@ -548,6 +580,7 @@ public class GameController implements EngineListener, SearchListener {
         // check piece color to move（按真实轮走方 bRedGo 判断，兼容人执黑/电脑执红）
         int piece = game.currentBoard.getPieceByPosition(game.startPos);
         boolean redToMove = game.currentBoard.bRedGo;
+        GcLog.d("doMove: color check pieceRed=" + Piece.isRed(piece) + " redToMove=" + redToMove);
         if (Piece.isRed(piece) != redToMove) {
             Log.e("GameController", "Invalid move, piece color is not match");
             if (redToMove) {
@@ -601,17 +634,13 @@ public class GameController implements EngineListener, SearchListener {
 
         // start request to evaluate board status
         // result will be returned by notifyEvalResult
+        com.zfdang.chess.controllers.GcLog.d("doMove done: state=" + state + " bRedGo=" + game.currentBoard.bRedGo + " -> evalCurrentBoard");
         evalCurrentBoard();
     }
 
     protected void toggleTurn() {
-        if (state == ControllerState.WAITING_FOR_USER) {
-            state = ControllerState.WAITING_FOR_ENGINE;
-        } else if (state == ControllerState.WAITING_FOR_ENGINE) {
-            state = ControllerState.WAITING_FOR_USER;
-        } else {
-            Log.e("GameController", "Invalid state, toggleTurn should not be called now." + state);
-        }
+        // 走子后轮走方已由棋盘 bRedGo 翻转，按执棋方重新推导等待状态
+        setSatate(game.currentBoard.bRedGo);
     }
 
     @Override
@@ -622,8 +651,7 @@ public class GameController implements EngineListener, SearchListener {
             if (closed) return;
             if (state == ControllerState.WAITING_FOR_EVAL) state = preEvalState;
             else if (state != ControllerState.MANUAL_MODE && game != null && game.currentBoard != null)
-                state = game.currentBoard.bRedGo ? ControllerState.WAITING_FOR_USER
-                        : ControllerState.WAITING_FOR_ENGINE;
+                setSatate(game.currentBoard.bRedGo);
             // The raw message is a Java/exception string; keep it in the log and give the user
             // an actionable hint. A stopped engine is not restarted automatically by design:
             // repeated restarts against a broken engine would just thrash.
@@ -705,6 +733,8 @@ public class GameController implements EngineListener, SearchListener {
 
     @Override
     public void notifyEvalResult(int searchId, float eval) {
+        com.zfdang.chess.controllers.GcLog.d("notifyEvalResult: eval=" + eval + " closed=" + closed
+                + " auto=" + isAutoPlay + " engineTurn=" + isEngineTurnNow());
         if (closed) return;
         Log.d("GameController", "Eval result: eval=" + eval);
         // 写回被评估的那个局面(而不是此刻的currentBoard)，并在UI线程上写，与movePiece串行
@@ -761,11 +791,7 @@ public class GameController implements EngineListener, SearchListener {
         // load game status
         try {
             game = Game.loadFromFile(ChessApp.getContext());
-            if (game.currentBoard.bRedGo) {
-                state = ControllerState.WAITING_FOR_USER;
-            } else {
-                state = ControllerState.WAITING_FOR_ENGINE;
-            }
+            setSatate(game.currentBoard.bRedGo);
             Log.d("GameController", "Game status loaded");
         } catch (IOException e) {
             Log.e("GameController", "Failed to load game status: " + e);

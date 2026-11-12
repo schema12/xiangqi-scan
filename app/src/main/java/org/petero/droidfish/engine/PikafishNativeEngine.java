@@ -8,6 +8,7 @@ import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.os.RemoteException;
 import com.zfdang.chess.ChessApp;
+import com.zfdang.chess.controllers.GcLog;;
 import com.zfdang.chess.engine.EngineAssets;
 import com.zfdang.chess.engine.IPikafishCallback;
 import com.zfdang.chess.engine.IPikafishService;
@@ -58,6 +59,7 @@ public final class PikafishNativeEngine extends UCIEngineBase {
         @Override public void onNullBinding(ComponentName name) { fail("Pikafish service unavailable"); }
     };
     private void fail(String message) {
+        com.zfdang.chess.controllers.GcLog.d("ENGINE FAIL: " + message);
         synchronized (this) {
             if (closed || failureReported) return;
             failureReported = true;
@@ -73,9 +75,10 @@ public final class PikafishNativeEngine extends UCIEngineBase {
         } catch (RuntimeException error) { fail(error.toString()); }
     }
     @Override public synchronized void writeLineToEngine(String line) {
-        if (closed) return;
-        if (service == null) { pending.add(line); return; }
-        try { service.command(session, line); } catch (RemoteException error) { fail(error.toString()); }
+        com.zfdang.chess.controllers.GcLog.d("UCI->: " + line);
+        if (closed) { GcLog.d("UCI-> dropped: closed"); return; }
+        if (service == null) { GcLog.d("UCI-> pending: " + line); pending.add(line); return; }
+        try { service.command(session, line); } catch (RemoteException error) { GcLog.d("UCI-> RemoteException: " + error); fail(error.toString()); }
     }
     @Override public String readLineFromEngine(int timeoutMillis) { return output.readLine(timeoutMillis); }
     @Override public synchronized void shutDown() {
