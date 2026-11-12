@@ -15,6 +15,9 @@ fun gitVersion(): Int {
     }.standardOutput.asText.get().trim().toInt()
 }
 
+// 轻量验证包：-PverifyBuild 时排除大体量棋谱/引擎资产（识别摆谱功能不受影响）
+val verifyBuild = project.hasProperty("verifyBuild")
+
 android {
     namespace = "com.zfdang.chess"
     compileSdk = 36
@@ -32,6 +35,7 @@ android {
         targetSdk = 36
         versionCode = gitVersion()
         versionName = "2.3"
+        buildConfigField("Boolean", "VERIFY_BUILD", verifyBuild.toString())
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -104,6 +108,16 @@ android {
     }
     buildFeatures {
         viewBinding = true
+    }
+
+
+    if (verifyBuild) {
+        // 验证包：只保留识别模型 assets（跳过 27k 棋谱 + 引擎 NNUE）
+        sourceSets {
+            getByName("main") {
+                assets.setSrcDirs(listOf("src/main/assets_verify"))
+            }
+        }
     }
 
     // https://gist.github.com/pankajXdev/574063901ada2fafa329068f41ddb076
