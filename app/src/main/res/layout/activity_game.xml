@@ -413,10 +413,6 @@
                         android:textColor="@color/ui_muted"
                         android:gravity="center" />
                 </LinearLayout>
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="3" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout

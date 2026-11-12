@@ -131,7 +131,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
             binding.exitbt,
             binding.choice1bt,
             binding.choice2bt,
-            binding.choice3bt
+            binding.choice3bt,
+            binding.scanbt
         )
         for (button in imageButtons) {
             button.setOnClickListener(this)
