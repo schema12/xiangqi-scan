@@ -10,18 +10,18 @@
     <!-- 3:4 取景框：上下两条白色横线，垂直居中（上留白=下留白≈604px） -->
     <View
         android:layout_width="match_parent" android:layout_height="2dp"
-        android:layout_gravity="top" android:layout_marginTop="201dp"
+        android:layout_gravity="top" android:layout_marginTop="165dp"
         android:background="#FFFFFFFF" />
     <View
         android:layout_width="match_parent" android:layout_height="2dp"
-        android:layout_gravity="top" android:layout_marginTop="601dp"
+        android:layout_gravity="top" android:layout_marginTop="565dp"
         android:background="#FFFFFFFF" />
 
     <!-- 提示文字（下横线之下、按钮之上） -->
     <TextView
         android:id="@+id/capHint"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="150dp"
+        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="170dp"
         android:text="@string/cap_hint" android:textColor="#FFFFFF" android:textSize="20sp" />
 
     <!-- 紫色胶囊按钮：中心线与相册图标对齐 -->
