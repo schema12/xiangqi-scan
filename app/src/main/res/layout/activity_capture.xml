@@ -7,45 +7,39 @@
         android:id="@+id/preview"
         android:layout_width="match_parent" android:layout_height="match_parent" />
 
-    <!-- 3:4 取景框：上下两条白色横线（位置按效果图二实测：y≈650px / y≈1850px，480dpi 下 1dp=3px） -->
+    <!-- 3:4 取景框：上下两条白色横线，垂直居中（上留白=下留白≈604px） -->
     <View
         android:layout_width="match_parent" android:layout_height="2dp"
-        android:layout_gravity="top" android:layout_marginTop="217dp"
+        android:layout_gravity="top" android:layout_marginTop="201dp"
         android:background="#FFFFFFFF" />
     <View
         android:layout_width="match_parent" android:layout_height="2dp"
-        android:layout_gravity="top" android:layout_marginTop="617dp"
+        android:layout_gravity="top" android:layout_marginTop="601dp"
         android:background="#FFFFFFFF" />
 
-    <!-- 提示文字（效果图二 y≈1750-1850px） -->
+    <!-- 提示文字（下横线之下、按钮之上） -->
     <TextView
         android:id="@+id/capHint"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="186dp"
+        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="150dp"
         android:text="@string/cap_hint" android:textColor="#FFFFFF" android:textSize="20sp" />
 
-    <!-- 紫色胶囊按钮（效果图二：宽≈160dp 高≈43dp 距底≈26dp，文案「拍照识别」） -->
+    <!-- 紫色胶囊按钮：中心线与相册图标对齐 -->
     <Button android:id="@+id/btnShot"
         android:layout_width="160dp" android:layout_height="44dp"
-        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="26dp"
+        android:layout_gravity="center_horizontal|bottom" android:layout_marginBottom="34dp"
         android:background="@drawable/bg_capture_btn"
         android:text="@string/cap_shot" android:textColor="#FFFFFF" android:textSize="20sp"
         android:textStyle="bold" />
 
-    <!-- 相册入口（效果图二：右下角靠近侧边，图标+「相册」文字） -->
-    <LinearLayout
+    <!-- 相册入口：仅图标，中心线与按钮对齐 -->
+    <ImageView
         android:id="@+id/btnAlbum"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_width="40dp" android:layout_height="40dp"
         android:layout_gravity="bottom|end" android:layout_marginEnd="27dp"
         android:layout_marginBottom="36dp"
-        android:orientation="vertical" android:gravity="center"
+        android:src="@drawable/ic_album"
         android:clickable="true" android:focusable="true"
-        android:background="?android:attr/selectableItemBackgroundBorderless">
-        <ImageView
-            android:layout_width="40dp" android:layout_height="40dp"
-            android:src="@drawable/ic_album" />
-        <TextView
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="相册" android:textColor="#FFFFFF" android:textSize="14sp" />
-    </LinearLayout>
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="相册" />
 </FrameLayout>

@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.util.Size
 import android.view.View
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
@@ -67,7 +66,7 @@ class CaptureActivity : AppCompatActivity() {
         btnShot = findViewById(R.id.btnShot)
         findViewById<TextView>(R.id.capHint).text = getString(R.string.cap_hint)
         btnShot.setOnClickListener { takePhoto() }
-        findViewById<LinearLayout>(R.id.btnAlbum).setOnClickListener {
+        findViewById<android.widget.ImageView>(R.id.btnAlbum).setOnClickListener {
             pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
 
