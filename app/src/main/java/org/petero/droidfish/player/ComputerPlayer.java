@@ -193,6 +193,20 @@ public class ComputerPlayer {
         engineState.setState(EngineStateValue.DEAD);
     }
 
+    /** 引擎出错后标记死亡（不丢挂起请求的状态清理）：下一次搜索请求会重新拉起引擎进程 */
+    public final synchronized void markEngineDead() {
+        if (engineMonitor != null) {
+            engineMonitor.interrupt();
+            engineMonitor = null;
+        }
+        try {
+            if (uciEngine != null) uciEngine.shutDown();
+        } catch (Throwable ignored) {
+        }
+        uciEngine = null;
+        engineState.setState(EngineStateValue.DEAD);
+    }
+
     /**
      * Start an engine, if not already started.
      * Will shut down old engine first, if needed.

@@ -46,15 +46,14 @@ public class GameController implements EngineListener, SearchListener {
 
     public boolean isComputerPlaying = true;
 
-    /** 执棋模式：0=人执红·电脑执黑 1=红黑双人 2=人执黑·电脑执红 */
-    public int playerMode = 0;
-    /** 人执红？(false=人执黑，电脑执红) */
-    public boolean humanPlaysRed = true;
+    /** 双方执子方：true=棋手(人) false=电脑。双人=都true；演示=都false */
+    public boolean redIsHuman = true;
+    public boolean blackIsHuman = false;
 
-    /** 现在轮到引擎出子？= 电脑开启 且 轮走方不是人执的一侧 */
+    /** 现在轮到引擎出子？轮走方一侧不是人执即引擎出子 */
     public boolean isEngineTurnNow() {
         boolean redToMove = game != null && game.currentBoard != null && game.currentBoard.bRedGo;
-        return isComputerPlaying && (redToMove != humanPlaysRed);
+        return redToMove ? !redIsHuman : !blackIsHuman;
     }
 
     /** 现在轮到人出子？(双人模式恒为真) */
@@ -171,17 +170,31 @@ public class GameController implements EngineListener, SearchListener {
         isComputerPlaying = !isComputerPlaying;
     }
 
-    /** 执棋模式三态循环：人执红·电脑执黑 → 红黑双人 → 人执黑·电脑执红 */
-    public synchronized int cyclePlayerMode() {
-        playerMode = (playerMode + 1) % 3;
-        isComputerPlaying = (playerMode != 1);
-        humanPlaysRed = (playerMode != 2);
-        // 中途切换：停掉进行中的搜索，并把状态复位为当前轮走方
+    /** 应用棋局设置（棋局设置弹窗确认）：双方执子方 + 先手方；保留当前局面，重设轮走方 */
+    public synchronized void applyPlayerConfig(boolean redHuman, boolean blackHuman, boolean redFirst) {
+        GcLog.d("applyPlayerConfig: redHuman=" + redHuman + " blackHuman=" + blackHuman
+                + " redFirst=" + redFirst + " wasRedTurn=" + isRedTurn());
+        redIsHuman = redHuman;
+        blackIsHuman = blackHuman;
+        isComputerPlaying = !(redHuman && blackHuman);
+        // 双方都是电脑：演示模式，强制开启自动走棋保证连续行棋
+        if (!redHuman && !blackHuman && !isAutoPlay) toggleComputerAutoPlay();
         if (player != null) player.stopSearch();
         if (game != null && game.currentBoard != null) {
-            setSatate(game.currentBoard.bRedGo);
+            game.currentBoard.bRedGo = redFirst;
+            setSatate(redFirst);
         }
-        return playerMode;
+        // 用户刚把执子权交出去，轮到引擎就立即出手（不受自动走棋开关限制）
+        forceEngineForward();
+    }
+
+    /** 按棋局设置开新局（新局弹窗确认） */
+    public synchronized void newGameWithConfig(boolean redHuman, boolean blackHuman, boolean redFirst) {
+        GcLog.d("newGameWithConfig: redHuman=" + redHuman + " blackHuman=" + blackHuman + " redFirst=" + redFirst);
+        settings.setRed_go_first(redFirst);
+        settings.saveSettings();
+        startNewGame();
+        applyPlayerConfig(redHuman, blackHuman, redFirst);
     }
 
     /** 轮到引擎时让它出手（自动走棋开启时） */
@@ -215,8 +228,9 @@ public class GameController implements EngineListener, SearchListener {
 
     public synchronized void setSatate(boolean isRedTurn) {
         // WAITING_FOR_USER=轮到人出子，WAITING_FOR_ENGINE=轮到引擎出子；
-        // 由 humanPlaysRed 推导，不再把红方硬编码为人
-        if (isRedTurn == humanPlaysRed) {
+        // 由当轮一侧的执子方推导
+        boolean humanToMove = isRedTurn ? redIsHuman : blackIsHuman;
+        if (humanToMove) {
             state = ControllerState.WAITING_FOR_USER;
         } else {
             state = ControllerState.WAITING_FOR_ENGINE;
@@ -517,6 +531,10 @@ public class GameController implements EngineListener, SearchListener {
         } else if (state == ControllerState.WAITING_FOR_USER_MULTIPV) {
             player.stopSearch();
             gui.onGameEvent(GameStatus.SELECT, "停止寻求帮助...");
+        } else if (isEngineTurnNow()) {
+            // 没有搜索在跑但轮到引擎：立即让它出子（修复“无搜索任务”死路）
+            GcLog.d("stopSearchNow: idle but engine turn -> forward");
+            forceEngineForward();
         } else {
             gui.onGameEvent(GameStatus.ILLEGAL, "无搜索任务");
         }
@@ -538,6 +556,7 @@ public class GameController implements EngineListener, SearchListener {
 
         GcLog.d("computerMovePiece: bestmove=" + bestmove + " valid=" + result);
         if (result) {
+            engineErrorRetries = 0; // 引擎成功出子，重置错误重试计数
             Log.d("GameController", "computer move: " + move.getChsString());
 
             game.setStartPos(move.fromPosition);
@@ -667,6 +686,9 @@ public class GameController implements EngineListener, SearchListener {
         setSatate(game.currentBoard.bRedGo);
     }
 
+    /** 引擎出错后的自动重启重试计数（成功出子后清零） */
+    private int engineErrorRetries = 0;
+
     @Override
     public void reportEngineError(String errMsg) {
         Log.d("GameController", "Engine error: " + errMsg);
@@ -676,10 +698,17 @@ public class GameController implements EngineListener, SearchListener {
             if (state == ControllerState.WAITING_FOR_EVAL) state = preEvalState;
             else if (state != ControllerState.MANUAL_MODE && game != null && game.currentBoard != null)
                 setSatate(game.currentBoard.bRedGo);
-            // The raw message is a Java/exception string; keep it in the log and give the user
-            // an actionable hint. A stopped engine is not restarted automatically by design:
-            // repeated restarts against a broken engine would just thrash.
-            gui.onGameEvent(GameStatus.ILLEGAL, "引擎已停止，请重新走子或开新局");
+            // 引擎出错后标记死亡：下一次搜索请求会自动重新拉起引擎进程
+            player.markEngineDead();
+            if (isEngineTurnNow() && engineErrorRetries < 2) {
+                // 轮到引擎：自动重启引擎并重试一次（最多2次，防止坏引擎反复拉起）
+                engineErrorRetries++;
+                GcLog.d("reportEngineError: engine turn, retry #" + engineErrorRetries);
+                gui.onGameEvent(GameStatus.UPDATEUI, "引擎重启中...");
+                mainHandler.postDelayed(this::forceEngineForward, 1200);
+            } else {
+                gui.onGameEvent(GameStatus.ILLEGAL, "引擎已停止，请重新走子或开新局");
+            }
         });
     }
 

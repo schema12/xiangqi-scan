@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/ui_paper">
 
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="match_parent"
@@ -11,41 +13,87 @@
             android:layout_width="match_parent" android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- FEN / 置信度紧贴棋盘下方，三个按钮纵向排列、水平居中 -->
+        <!-- 校准结果卡片：FEN（等宽两行）+ 置信度 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:gravity="center_horizontal"
-            android:background="#F2EFE9"
-            android:paddingHorizontal="16dp" android:paddingTop="10dp" android:paddingBottom="16dp">
+            android:orientation="vertical"
+            android:layout_marginHorizontal="16dp" android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card_white"
+            android:paddingHorizontal="18dp" android:paddingVertical="14dp">
 
             <TextView android:id="@+id/tvFen"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textColor="#1A1A1A" android:textSize="13sp"
+                android:textColor="@color/ui_ink" android:textSize="13sp"
                 android:fontFamily="monospace" android:maxLines="2" android:gravity="center"
                 android:text="—" />
 
             <TextView android:id="@+id/tvConf"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textColor="#666666" android:textSize="13sp" android:text=""
-                android:layout_marginTop="2dp" />
+                android:textColor="@color/ui_muted" android:textSize="13sp" android:text=""
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
 
-            <Button android:id="@+id/btnFlip"
-                android:layout_width="220dp" android:layout_height="44dp"
-                android:layout_marginTop="10dp"
-                android:textSize="15sp" android:singleLine="true"
-                android:text="@string/rec_flip" />
+        <!-- 操作卡片：翻转棋盘 / 复制 FEN / 校准完成 -->
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginHorizontal="16dp" android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_card_white"
+            android:paddingVertical="14dp">
 
-            <Button android:id="@+id/btnCopyFen"
-                android:layout_width="220dp" android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:textSize="15sp" android:singleLine="true"
-                android:text="@string/rec_copy_fen" />
+            <LinearLayout android:id="@+id/btnFlip"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical" android:gravity="center">
 
-            <Button android:id="@+id/btnStartGame"
-                android:layout_width="220dp" android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:textSize="15sp" android:singleLine="true"
-                android:text="@string/rec_start_game" />
+                <ImageView
+                    android:layout_width="26dp" android:layout_height="26dp"
+                    android:src="@drawable/ic_flip_board"
+                    app:tint="@color/ui_ink"
+                    android:contentDescription="@string/rec_flip"/>
+
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/rec_flip"
+                    android:textColor="@color/ui_ink" android:textSize="14sp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnCopyFen"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical" android:gravity="center">
+
+                <ImageView
+                    android:layout_width="26dp" android:layout_height="26dp"
+                    android:src="@drawable/ic_copy_fen"
+                    app:tint="@color/ui_ink"
+                    android:contentDescription="@string/rec_copy_fen"/>
+
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/rec_copy_fen"
+                    android:textColor="@color/ui_ink" android:textSize="14sp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnStartGame"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical" android:gravity="center">
+
+                <ImageView
+                    android:layout_width="26dp" android:layout_height="26dp"
+                    android:src="@drawable/ic_calibrate_done"
+                    android:contentDescription="@string/rec_start_game"/>
+
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/rec_start_game"
+                    android:textColor="@color/ui_purple" android:textSize="14sp"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

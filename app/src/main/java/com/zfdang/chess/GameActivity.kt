@@ -25,6 +25,7 @@ import com.github.mikephil.charting.components.Description
 import com.zfdang.chess.adapters.HistoryAndTrendAdapter
 import com.zfdang.chess.controllers.GameController
 import com.zfdang.chess.views.CaptureActivity
+import com.zfdang.chess.views.GameSetupDialog
 import com.zfdang.chess.views.ScanActivity
 import com.zfdang.chess.controllers.ControllerListener
 import com.zfdang.chess.databinding.ActivityGameBinding
@@ -57,6 +58,12 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
     private lateinit var bhBook: BHOpenBook
 
     private var isFromManual = false
+
+    companion object {
+        const val EXTRA_RED_HUMAN = "redHuman"
+        const val EXTRA_BLACK_HUMAN = "blackHuman"
+        const val EXTRA_RED_FIRST = "redFirst"
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     // 识别摆谱：拍照 / 相册 → ScanActivity → FENString 回到本页
@@ -165,11 +172,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         } else {
             binding.autoplaybt.setImageResource(R.drawable.pause_circle)
         }
-        if(controller.isComputerPlaying){
-            binding.playerbt.setImageResource(R.drawable.computer)
-        } else {
-            binding.playerbt.setImageResource(R.drawable.person)
-        }
+        // 棋局设置按钮固定为齿轮图标
+        binding.playerbt.setImageResource(R.drawable.ic_settings)
 
         // init status text
         if(controller.isRedTurn){
@@ -183,8 +187,13 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         if(fenString != null){
             controller.startFENGame(fenString)
             isFromManual = true
-            controller.toggleComputerAutoPlay()
-            binding.autoplaybt.setImageResource(R.drawable.pause_circle)
+            // 携带棋局设置（识图校准完成）时按设置应用；默认先手方=FEN 轮走方，执子方=当前设置
+            val redHuman = intent.getBooleanExtra(EXTRA_RED_HUMAN, controller.redIsHuman)
+            val blackHuman = intent.getBooleanExtra(EXTRA_BLACK_HUMAN, controller.blackIsHuman)
+            val redFirst = intent.getBooleanExtra(EXTRA_RED_FIRST, controller.isRedTurn())
+            controller.applyPlayerConfig(redHuman, blackHuman, redFirst)
+            chessView.setFlipped(!redHuman && blackHuman)
+            updatePlayerModeUi()
         }
     }
 
@@ -234,52 +243,30 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         binding.statustv.text = text
     }
 
-    /** 按执棋模式更新副标题与按钮图标 */
+    /** 按当前执子方更新副标题（棋局设置按钮固定为齿轮图标） */
     private fun updatePlayerModeUi() {
-        when (controller.playerMode) {
-            0 -> { binding.playerbt.setImageResource(R.drawable.computer); binding.opponentLabel.text = "你执红 · 电脑执黑" }
-            1 -> { binding.playerbt.setImageResource(R.drawable.person); binding.opponentLabel.text = "红黑双人 · 人工执棋" }
-            2 -> { binding.playerbt.setImageResource(R.drawable.person); binding.opponentLabel.text = "你执黑 · 电脑执红" }
+        binding.opponentLabel.text = when {
+            controller.redIsHuman && !controller.blackIsHuman -> "你执红 · 电脑执黑"
+            !controller.redIsHuman && controller.blackIsHuman -> "电脑执红 · 你执黑"
+            !controller.redIsHuman && !controller.blackIsHuman -> "电脑演示 · 双方电脑"
+            else -> "红黑双人 · 人工执棋"
         }
     }
 
-    fun showNewGameConfirmDialog() {
-        val builder = MaterialAlertDialogBuilder(this)
-            .setBackground(AppCompatResources.getDrawable(this, R.drawable.ui_dialog_background))
-        builder.setTitle("开始新的一局？")
-        builder.setMessage("当前棋局将被替换。准备好了，就重新落子吧。")
-
-        builder.setPositiveButton("开始新局") { dialog, which ->
-            // User clicked Yes button
-            controller.startNewGame()
+    /** 新局：弹出棋局设置，确认后按设置开新局 */
+    fun showNewGameSetupDialog() {
+        GameSetupDialog(
+            this,
+            redFirstInit = controller.settings.red_go_first,
+            redHumanInit = controller.redIsHuman,
+            blackHumanInit = controller.blackIsHuman
+        ) { redFirst, redHuman, blackHuman ->
+            controller.newGameWithConfig(redHuman, blackHuman, redFirst)
+            chessView.setFlipped(!redHuman && blackHuman)
+            updatePlayerModeUi()
             updateGameHistory()
-            if(controller.settings.red_go_first) {
-                setStatusText("新游戏，红方先行")
-            } else {
-                setStatusText("新游戏，黑方先行")
-            }
-            // hide choice buttons
-            if(binding.choice1bt.visibility == View.VISIBLE){
-                binding.choice1bt.visibility = View.GONE;
-                binding.choice2bt.visibility = View.GONE;
-                binding.choice3bt.visibility = View.GONE;
-            }
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if(controller.isComputerPlaying && controller.isAutoPlay && !controller.settings.red_go_first){
-                    controller.computerForward()
-                }
-            }, 1000)
-        }
-
-        builder.setNegativeButton("继续对弈") { dialog, which ->
-            // User clicked No button
-            dialog.dismiss()
-        }
-
-        builder.setCancelable(true)
-        val dialog = builder.create()
-        dialog.show()
+            setStatusText(if (redFirst) "新游戏，红方先行" else "新游戏，黑方先行")
+        }.show()
     }
 
     fun saveThenExit() {
@@ -337,19 +324,19 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
         // handle events for all imagebuttons in activity_player.xml
         when(v) {
             binding.playerbt -> {
-                val mode = controller.cyclePlayerMode()
-                updatePlayerModeUi()
-                when (mode) {
-                    0 -> { chessView.setFlipped(false); setStatusText("执棋模式：你执红 · 电脑执黑") }
-                    1 -> setStatusText("执棋模式：红黑双人 · 人工执棋")
-                    2 -> { chessView.setFlipped(true); setStatusText("执棋模式：你执黑 · 电脑执红（棋盘已翻转）") }
-                }
-                // 模式切换后：轮到引擎则让它出手（不受自动走棋开关限制），轮到人则停掉残留搜索
-                if (controller.isEngineTurnNow()) {
-                    controller.forceEngineForward()
-                } else {
-                    controller.stopSearchNow()
-                }
+                // 棋局设置：应用到当前局面（先手方默认=当前轮走方，可改）
+                GameSetupDialog(
+                    this,
+                    redFirstInit = controller.isRedTurn(),
+                    redHumanInit = controller.redIsHuman,
+                    blackHumanInit = controller.blackIsHuman
+                ) { redFirst, redHuman, blackHuman ->
+                    controller.applyPlayerConfig(redHuman, blackHuman, redFirst)
+                    chessView.setFlipped(!redHuman && blackHuman)
+                    updatePlayerModeUi()
+                    updateGameHistory()
+                    setStatusText(if (controller.isRedTurn()) "等待红方走棋" else "等待黑方走棋")
+                }.show()
             }
             binding.playerbackbt -> {
                 controller.stepBack()
@@ -387,8 +374,8 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
                 dialog.show(supportFragmentManager, "CustomDialog")
             }
             binding.newbt -> {
-                // display dialog to ask users for confirmation
-                showNewGameConfirmDialog()
+                // 新局：弹出棋局设置（先手方/双方执子方），确认后开新局
+                showNewGameSetupDialog()
             }
             binding.backbt -> {
                 controller.stepBack()

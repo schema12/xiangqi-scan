@@ -6,4 +6,8 @@
     <color name="ui_muted">#797D73</color>
     <color name="ui_red">#A33D32</color>
     <color name="ui_line">#E5DFD3</color>
+    <!-- 棋局设置弹窗紫色系 -->
+    <color name="ui_purple">#6B4E9E</color>
+    <color name="ui_purple_bg">#F1ECFA</color>
+    <color name="ui_purple_stroke">#C7B8E8</color>
 </resources>

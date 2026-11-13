@@ -8,7 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -16,6 +16,7 @@ import com.zfdang.chess.GameActivity
 import com.zfdang.chess.R
 import com.zfdang.chess.recognition.ImageLoader
 import com.zfdang.chess.recognition.OnnxBoardRecognizer
+import com.zfdang.chess.views.GameSetupDialog
 import kotlin.concurrent.thread
 
 /**
@@ -55,9 +56,15 @@ class ScanActivity : AppCompatActivity() {
         board.onCellTap = { r, c -> onCellTapped(r, c) }
         board.onPiecePick = { ch -> onPiecePicked(ch) }
 
-        findViewById<Button>(R.id.btnStartGame).setOnClickListener { startGame() }
-        findViewById<Button>(R.id.btnFlip).setOnClickListener { flipBoard() }
-        findViewById<Button>(R.id.btnCopyFen).setOnClickListener {
+        findViewById<LinearLayout>(R.id.btnStartGame).setOnClickListener {
+            // 校准完成：先弹棋局设置（先手方默认=识别FEN的轮走方），确认后带设置开局
+            val redFirstNow = fen.endsWith(" w - - 0 1") || fen.contains(" w - - 0 1")
+            GameSetupDialog(this, redFirstInit = redFirstNow, redHumanInit = true, blackHumanInit = true) {
+                redFirst, redHuman, blackHuman -> startGame(redFirst, redHuman, blackHuman)
+            }.show()
+        }
+        findViewById<LinearLayout>(R.id.btnFlip).setOnClickListener { flipBoard() }
+        findViewById<LinearLayout>(R.id.btnCopyFen).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("FEN", fen))
             Toast.makeText(this, "FEN串已复制到剪贴板", Toast.LENGTH_SHORT).show()
@@ -244,7 +251,7 @@ class ScanActivity : AppCompatActivity() {
         updateFen()
     }
 
-    private fun startGame() {
+    private fun startGame(redFirst: Boolean, redHuman: Boolean, blackHuman: Boolean) {
         // 双将校验
         val redK = grid.sumOf { row -> row.count { it == 'K' } }
         val blackK = grid.sumOf { row -> row.count { it == 'k' } }
@@ -252,8 +259,13 @@ class ScanActivity : AppCompatActivity() {
             Toast.makeText(this, "棋盘必须包含双方将/帅", Toast.LENGTH_LONG).show()
             return
         }
+        // FEN 轮走字段按先手方设置覆写（gridToFen 固定输出 w）
+        val f = if (redFirst) gridToFen(grid) else gridToFen(grid).replaceFirst(" w - - 0 1", " b - - 0 1")
         val i = Intent(this, GameActivity::class.java).apply {
-            putExtra("FENString", gridToFen(grid))
+            putExtra("FENString", f)
+            putExtra(GameActivity.EXTRA_RED_HUMAN, redHuman)
+            putExtra(GameActivity.EXTRA_BLACK_HUMAN, blackHuman)
+            putExtra(GameActivity.EXTRA_RED_FIRST, redFirst)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         startActivity(i)

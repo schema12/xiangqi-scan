@@ -218,13 +218,13 @@
                     <ImageButton
                         android:id="@+id/playerbt"
                         style="@style/Widget.Chess.Action"
-                        android:contentDescription="执棋模式"
-                        android:tooltipText="执棋模式"
-                        app:srcCompat="@drawable/computer" />
+                        android:contentDescription="棋局设置"
+                        android:tooltipText="棋局设置"
+                        app:srcCompat="@drawable/ic_settings" />
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="执棋模式"
+                        android:text="棋局设置"
                         android:textSize="11sp"
                         android:textColor="@color/ui_muted"
                         android:gravity="center" />
