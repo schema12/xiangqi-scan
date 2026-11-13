@@ -10,14 +10,14 @@
 
         <com.zfdang.chess.views.BoardEditView
             android:id="@+id/boardEdit"
-            android:layout_width="match_parent" android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-        <!-- 校准结果卡片：FEN（等宽两行）+ 置信度 -->
+        <!-- 校准结果卡片：FEN（等宽两行）+ 置信度，紧贴棋盘底部 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginHorizontal="16dp" android:layout_marginTop="12dp"
+            android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
             android:background="@drawable/bg_card_white"
             android:paddingHorizontal="18dp" android:paddingVertical="14dp">
 
@@ -37,7 +37,7 @@
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginHorizontal="16dp" android:layout_marginTop="12dp"
+            android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
             android:layout_marginBottom="16dp"
             android:background="@drawable/bg_card_white"
             android:paddingVertical="14dp">

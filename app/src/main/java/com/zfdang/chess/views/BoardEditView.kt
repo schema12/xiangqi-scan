@@ -58,6 +58,13 @@ class BoardEditView @JvmOverloads constructor(
     var grid: Array<CharArray> = Array(10) { CharArray(9) { '.' } }
         set(value) { field = value; invalidate() }
 
+    /** 纯视图翻转（grid 数据与 FEN 不变）：识别图上下颠倒时便于校对 */
+    var viewFlipped = false
+        set(value) { field = value; invalidate() }
+
+    private fun vRow(r: Int) = if (viewFlipped) 9 - r else r
+    private fun vCol(c: Int) = if (viewFlipped) 8 - c else c
+
     /** 选中格（显示四角直角标记），-1 无 */
     var selected = -1
         set(value) { field = value; invalidate() }
@@ -121,6 +128,13 @@ class BoardEditView @JvmOverloads constructor(
     // 绘制
     // ------------------------------------------------------------------
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // 按棋盘固定纵横比自适应高度，使下方校准结果卡片紧贴棋盘底部
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val h = (w * BOARD_HEIGHT.toFloat() / BOARD_WIDTH).toInt()
+        setMeasuredDimension(w, h)
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width == 0 || height == 0) return
@@ -132,7 +146,7 @@ class BoardEditView @JvmOverloads constructor(
 
         for (r in 0 until 10) for (c in 0 until 9) {
             val ch = grid[r][c]
-            val cx = cellX(c); val cy = cellY(r)
+            val cx = cellX(vCol(c)); val cy = cellY(vRow(r))
             if (ch != '.') {
                 pieceFor(ch)?.let {
                     canvas.drawBitmap(it, null,
@@ -146,7 +160,7 @@ class BoardEditView @JvmOverloads constructor(
         val cornerCell = if (selected >= 0) selected else popupAnchor
         if (cornerCell >= 0) {
             val r = cornerCell / 9; val c = cornerCell % 9
-            drawCorners(canvas, cellX(c), cellY(r))
+            drawCorners(canvas, cellX(vCol(c)), cellY(vRow(r)))
         }
 
         if (popupAnchor >= 0 && popupPieces.isNotEmpty()) {
@@ -188,7 +202,7 @@ class BoardEditView @JvmOverloads constructor(
 
         // 锚点格中心；悬浮窗默认显示在格子下方，靠近边缘时自动翻到上方/收进边界
         val ar = popupAnchor / 9; val ac = popupAnchor % 9
-        val ax = cellX(ac); val ay = cellY(ar)
+        val ax = cellX(vCol(ac)); val ay = cellY(vRow(ar))
         var left = ax - w / 2
         var topY = ay + pieceSize / 2 + 8f
         if (topY + h > height - 8f) topY = ay - pieceSize / 2 - 8f - h
@@ -255,7 +269,8 @@ class BoardEditView @JvmOverloads constructor(
         val c = Math.round(x / BOARD_GRID_INTERVAL)
         val r = Math.round(y / BOARD_GRID_INTERVAL)
         if (r in 0 until 10 && c in 0 until 9) {
-            onCellTap?.invoke(r, c)
+            // 视图坐标 → 网格坐标（翻转时逆映射）
+            onCellTap?.invoke(vRow(r), vCol(c))
         }
         return true
     }

@@ -237,14 +237,9 @@ class ScanActivity : AppCompatActivity() {
         return parts.joinToString("/") + " w - - 0 1"
     }
 
-    /** 翻转棋盘：画面红在上时用户手动翻转（棋子颜色不变，仅位置 180°） */
+    /** 翻转棋盘：仅视图翻转（grid 数据与 FEN 不变），便于校对上下颠倒的识别图 */
     private fun flipBoard() {
-        val g = Array(10) { CharArray(9) { '.' } }
-        for (r in 0 until 10) for (c in 0 until 9) {
-            g[r][c] = grid[9 - r][8 - c]
-        }
-        grid = g
-        board.grid = grid
+        board.viewFlipped = !board.viewFlipped
         board.selected = -1
         selectedCell = -1
         board.hidePopup()
