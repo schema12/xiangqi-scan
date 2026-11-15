@@ -61,10 +61,9 @@ EOF
 echo "[tool] compiling"
 javac -encoding UTF-8 -nowarn \
   -cp "$(cygpath -w "$JBBP" 2>/dev/null || echo "$JBBP")" \
+  -sourcepath "$APP/src/main/java" \
   -d "$(cygpath -w "$RUN/classes" 2>/dev/null || echo "$RUN/classes")" \
   "$RUN/android/util/Log.java" \
-  "$APP/src/main/java/com/zfdang/chess/gamelogic/"*.java \
-  "$APP/src/main/java/com/zfdang/chess/manuals/"*.java \
   "$HERE/src/booktools/BookBuilder.java"
 
 CP="$(cygpath -w "$RUN/classes" 2>/dev/null || echo "$RUN/classes");$(cygpath -w "$JBBP" 2>/dev/null || echo "$JBBP");$(cygpath -w "$SQLITE" 2>/dev/null || echo "$SQLITE")"
