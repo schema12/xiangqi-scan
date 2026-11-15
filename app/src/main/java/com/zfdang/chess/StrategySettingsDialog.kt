@@ -1,6 +1,7 @@
 package com.zfdang.chess
 
 import android.app.Dialog
+import android.content.DialogInterface
 import android.os.Bundle
 import android.view.View
 import android.widget.CompoundButton
@@ -21,6 +22,9 @@ class StrategySettingsDialog : DialogFragment() {
 
     private lateinit var settings: Settings
     private lateinit var controller: GameController
+
+    /** 弹窗关闭(保存或取消)时回调宿主,用于刷新一级页面的摘要/提示文本。 */
+    var onDismissCallback: (() -> Unit)? = null
 
     fun setController(controller: GameController) {
         this.controller = controller
@@ -91,6 +95,11 @@ class StrategySettingsDialog : DialogFragment() {
             }
             .setNegativeButton("取消") { dialog, _ -> dialog.cancel() }
         return builder.create()
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        onDismissCallback?.invoke()
     }
 
     private fun presetName(risk: Int): String = when {

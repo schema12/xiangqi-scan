@@ -11,6 +11,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.fragment.app.DialogFragment
 import com.zfdang.chess.controllers.GameController
+import com.zfdang.chess.openbook.AggressiveOpenBook
 import com.zfdang.chess.openbook.BHDatabase
 
 class SettingDialogFragment : DialogFragment() {
@@ -33,13 +34,18 @@ class SettingDialogFragment : DialogFragment() {
         engineInfo = info
     }
 
-    /** 二级弹窗(激进策略设置)保存后返回时,刷新入口行摘要(总开关状态会变)。 */
+    /** 二级弹窗保存/取消返回时刷新摘要与开局库提示(弹窗叠放不触发 onResume,须用 dismiss 回调)。 */
     override fun onResume() {
         super.onResume()
-        if (this::settings.isInitialized) {
-            view?.findViewById<TextView>(R.id.textview_strategy_summary)
-                ?.text = strategySummaryText(settings)
-        }
+        refreshDynamicTexts()
+    }
+
+    private fun refreshDynamicTexts() {
+        if (!this::settings.isInitialized) return
+        view?.findViewById<TextView>(R.id.textview_strategy_summary)
+            ?.text = strategySummaryText(settings)
+        view?.findViewById<TextView>(R.id.textViewOpenBook)
+            ?.text = bookHintText(settings)
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -59,12 +65,8 @@ class SettingDialogFragment : DialogFragment() {
 
         val booleanOpenbook = view.findViewById<CompoundButton>(R.id.boolean_openbook)
         val textviewOpenbook = view.findViewById<TextView>(R.id.textViewOpenBook)
-        // 修复静默失败:无库时明示,而不是后台无限懒重试
-        textviewOpenbook.text = if (BHDatabase.assetExists(requireContext())) {
-            "(" + BHDatabase.OPENBOOK_NAME + ")"
-        } else {
-            "(无开局库:未随包提供,由引擎直接搜索)"
-        }
+        // 路由感知提示:显示当前模式实际使用的开局库(激进模式 = 激进专用库)
+        textviewOpenbook.text = bookHintText(this.settings)
 
         val booleanSound = view.findViewById<CompoundButton>(R.id.boolean_sound)
 
@@ -91,6 +93,7 @@ class SettingDialogFragment : DialogFragment() {
         // ---- 激进策略设置入口(二级弹窗) ----
         val strategyEntry = view.findViewById<View>(R.id.strategy_entry)
         val strategySummary = view.findViewById<TextView>(R.id.textview_strategy_summary)
+        strategySummary.text = strategySummaryText(this.settings)
 
         // set the initial values
         if (this.settings != null) {
@@ -172,6 +175,8 @@ class SettingDialogFragment : DialogFragment() {
         strategyEntry.setOnClickListener {
             val dialog = StrategySettingsDialog()
             dialog.setController(controller)
+            // 二级弹窗关闭(保存或取消)时刷新一级页面的动态文本
+            dialog.onDismissCallback = { refreshDynamicTexts() }
             dialog.show(parentFragmentManager, "StrategySettingsDialog")
         }
 
@@ -209,6 +214,26 @@ class SettingDialogFragment : DialogFragment() {
         } else {
             "关闭"
         }
+
+    /**
+     * 「使用开局库」下方提示:按当前路由显示实际使用的库(与 OpeningBookRouter 一致)。
+     * 激进模式(Risk>0、激进库开、资产在)显示激进专用库;否则显示原版库状态。
+     */
+    private fun bookHintText(settings: Settings): String {
+        val aggressiveAvailable = AggressiveOpenBook.assetExists(requireContext())
+        val source = com.zfdang.chess.openbook.OpeningBookRouter.select(
+            settings.strategyEnabled, settings.riskLevel,
+            settings.aggressiveBookEnabled, aggressiveAvailable)
+        return when (source) {
+            com.zfdang.chess.openbook.OpeningBookRouter.Book.AGGRESSIVE ->
+                "(当前使用激进专用开局库 aggressive_book_v1 · 已随包)"
+            else -> if (BHDatabase.assetExists(requireContext())) {
+                "(" + BHDatabase.OPENBOOK_NAME + ")"
+            } else {
+                "(无原版开局库:未随包提供,由引擎直接搜索)"
+            }
+        }
+    }
 
     private fun presetName(risk: Int): String = when {
         risk <= 20 -> "稳健"
