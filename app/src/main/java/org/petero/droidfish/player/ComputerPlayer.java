@@ -536,12 +536,19 @@ public class ComputerPlayer {
                             Log.d("ComputerPlayer", "nextPonderMoveStr: " + nextPonderMoveStr);
                         }
 
-                        emitSearchOutcome(engineState.searchId, bestMoveStr, false);
                         reportMove(bestMoveStr, nextPonderMoveStr);
 
                         engineState.setState(EngineStateValue.IDLE);
                         searchRequest = null;
-                        handleIdleState();
+                        // Emit AFTER cleanup: the strategy listener may synchronously queue
+                        // the next candidate search, which requires IDLE state (queueing
+                        // during SEARCH would send a stray "stop" and deadlock in
+                        // STOP_FOR_BESTMOVE). The branch-tail handleIdleState is skipped
+                        // when the listener already started the next search.
+                        emitSearchOutcome(engineState.searchId, bestMoveStr, false);
+                        if (engineState.state == EngineStateValue.IDLE) {
+                            handleIdleState();
+                        }
                     }
                 }
                 break;
