@@ -37,11 +37,28 @@ class SettingDialogFragment : DialogFragment() {
     /** 二级弹窗保存/取消返回时刷新摘要与开局库提示(弹窗叠放不触发 onResume,须用 dismiss 回调)。 */
     override fun onResume() {
         super.onResume()
+        debugMirror("L1 onResume strat=${settingsDebug()}")
         refreshDynamicTexts()
+    }
+
+    private fun settingsDebug(): String =
+        "settings@" + System.identityHashCode(settings) +
+            " strat=" + settings.strategyEnabled +
+            " risk=" + settings.riskLevel
+
+    private fun debugMirror(msg: String) {
+        try {
+            val dir = requireContext().getExternalFilesDir(null) ?: return
+            java.io.File(dir, "ui_debug.log").appendText(
+                java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.US)
+                    .format(java.util.Date()) + " " + msg + "\n")
+        } catch (ignored: Throwable) {
+        }
     }
 
     private fun refreshDynamicTexts() {
         if (!this::settings.isInitialized) return
+        debugMirror("L1 refreshDynamicTexts " + settingsDebug())
         view?.findViewById<TextView>(R.id.textview_strategy_summary)
             ?.text = strategySummaryText(settings)
         view?.findViewById<TextView>(R.id.textViewOpenBook)
@@ -67,6 +84,8 @@ class SettingDialogFragment : DialogFragment() {
         val textviewOpenbook = view.findViewById<TextView>(R.id.textViewOpenBook)
         // 路由感知提示:显示当前模式实际使用的开局库(激进模式 = 激进专用库)
         textviewOpenbook.text = bookHintText(this.settings)
+        debugMirror("L1 created settings@" + System.identityHashCode(settings) +
+            " strat=" + settings.strategyEnabled + " risk=" + settings.riskLevel)
 
         val booleanSound = view.findViewById<CompoundButton>(R.id.boolean_sound)
 

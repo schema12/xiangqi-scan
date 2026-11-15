@@ -36,6 +36,8 @@ class StrategySettingsDialog : DialogFragment() {
             .setBackground(AppCompatResources.getDrawable(requireContext(), R.drawable.ui_dialog_background))
         val view: View = android.view.LayoutInflater.from(builder.context)
             .inflate(R.layout.strategy_settings_dialog, null)
+        debugMirror("L2 created settings@" + System.identityHashCode(settings) +
+            " strat=" + settings.strategyEnabled + " risk=" + settings.riskLevel)
 
         val master = view.findViewById<CompoundButton>(R.id.boolean_strategy_enabled)
         val riskBar = view.findViewById<SeekBar>(R.id.seekbar_risk)
@@ -90,6 +92,8 @@ class StrategySettingsDialog : DialogFragment() {
                 settings.openingStyleEnabled = openingStyle.isChecked
                 settings.diversityEnabled = diversity.isChecked
                 settings.saveSettings()
+                debugMirror("L2 saved settings@" + System.identityHashCode(settings) +
+                    " strat=" + settings.strategyEnabled)
                 // 总开关被改到关闭时,使进行中的激进决策安全失效并回退基线
                 controller.applyEngineSetting()
             }
@@ -99,7 +103,18 @@ class StrategySettingsDialog : DialogFragment() {
 
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
+        debugMirror("L2 dismissed")
         onDismissCallback?.invoke()
+    }
+
+    private fun debugMirror(msg: String) {
+        try {
+            val dir = requireContext().getExternalFilesDir(null) ?: return
+            java.io.File(dir, "ui_debug.log").appendText(
+                java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.US)
+                    .format(java.util.Date()) + " " + msg + "\n")
+        } catch (ignored: Throwable) {
+        }
     }
 
     private fun presetName(risk: Int): String = when {
