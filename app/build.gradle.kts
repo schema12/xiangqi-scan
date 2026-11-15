@@ -52,8 +52,9 @@ android {
     }
 
     androidResources {
-        // 27,542 个 XQF 棋谱小文件逐个 deflate 过慢，改为 STORED 直存
-        noCompress += listOf("xqf", "XQF", "onnx", "nnue", "db")
+        // 27,542 个 XQF 棋谱小文件逐个 deflate 过慢，改为 STORED 直存；
+        // zip(桔库开局库)本身已压缩,重复 deflate 无收益且拖慢打包
+        noCompress += listOf("xqf", "XQF", "onnx", "nnue", "db", "zip")
     }
 
     packaging {
