@@ -1,0 +1,49 @@
+name: feature-build
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Run JVM unit tests (armv8 flavor)
+        run: ./gradlew testArmv8-DebugUnitTest --stacktrace
+
+      - name: Assemble release APKs (both flavors)
+        run: ./gradlew assembleArmv8-Release assembleArmv8-dotprod-Release --stacktrace
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChessFish-apks
+          if-no-files-found: error
+          path: |
+            app/build/outputs/apk/armv8-/release/*.apk
+            app/build/outputs/apk/armv8-dotprod-/release/*.apk
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          if-no-files-found: ignore
+          path: app/build/reports/tests/
