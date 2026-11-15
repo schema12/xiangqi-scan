@@ -123,10 +123,14 @@ public final class ScoreFusion {
         double a = features.totalAttack();
         double c = s.sacrifice == null ? 0.0 : s.sacrifice.compensation;
         double u = winUtility == null ? 0.0 : winUtility;
+        // Attack-merit gate: a candidate with no attack content, no compensation and no
+        // win-utility gain must NEVER outscore the baseline through side bonuses
+        // (principle: deviation requires a verified attacking opportunity).
+        double merit = a + c + Math.max(0.0, u);
         double complexity = features.complexity;
         // Complexity counts only in balanced/worse positions; ahead we avoid needless risks.
         boolean balancedOrWorse = baselineCp <= 30.0;
-        double cx = balancedOrWorse ? complexity : 0.0;
+        double cx = (balancedOrWorse && merit > 0.0) ? complexity : 0.0;
 
         double score = StrategyParams.SCORE_W_ATTACK * a
                 * (StrategyParams.ATTACK_BASE_GAIN + StrategyParams.ATTACK_ALPHA_GAIN * profile.alpha)

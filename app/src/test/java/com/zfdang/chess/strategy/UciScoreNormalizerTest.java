@@ -43,7 +43,7 @@ public class UciScoreNormalizerTest {
         UciScoreNormalizer.DecisionScore best = UciScoreNormalizer.from(outcome("b2e2", 90, 0, null, 12, false));
         UciScoreNormalizer.DecisionScore cand = UciScoreNormalizer.from(outcome("h2e2", 40, 0, null, 12, false));
         assertEquals(50, UciScoreNormalizer.deltaCp(best, cand));
-        assertEquals(-20, UciScoreNormalizer.deltaCp(cand, best));
+        assertEquals(-50, UciScoreNormalizer.deltaCp(cand, best));
     }
 
     @Test public void deltaAcrossMateIsSentinel() {

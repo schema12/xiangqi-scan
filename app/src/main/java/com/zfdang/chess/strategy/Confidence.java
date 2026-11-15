@@ -28,6 +28,7 @@ public final class Confidence {
         if (o.upperBound || o.lowerBound) return LIMITED;
         if (o.depth >= StrategyParams.CONF_DEPTH_FULL && !o.pvUcci.isEmpty()) return FULL;
         if (o.depth >= StrategyParams.CONF_DEPTH_MIN && !o.pvUcci.isEmpty()) return BASIC;
+        if (o.depth >= StrategyParams.CONF_DEPTH_MIN) return LIMITED; // complete but no PV: diagnostics only
         if (o.depth >= 1) return INTERRUPTED;
         return NONE;
     }

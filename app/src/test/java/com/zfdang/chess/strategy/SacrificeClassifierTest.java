@@ -54,16 +54,12 @@ public class SacrificeClassifierTest {
         Board board = fenBoard();
         Move m = new Move(board);
         assertTrue(m.fromUCCIString("e5e6"));
-        // 构造 PV 续走(不含候选首着):黑车吃车 d6e6,红方无后续 → 仍是 A;
-        // 但如果红方能在 PV 内吃回等值子力 → B。这里验证工具函数本身:
+        // continuation 语义验证:PV 续走 "d6e6" = 黑车吃掉红车(对手吃子,非我方)。
         Board after = new Board(board);
         after.doMove(m);
-        // 黑车吃红车后再让红炮吃回黑车的手工局面不便于构造,退而验证:
-        // 空续走 PV → 无补偿 → A(已由第一个用例覆盖)。此处验证 continuation 语义:
         double recovered = SacrificeClassifier.moverCapturesInPv(board, after,
-                java.util.Arrays.asList("e6d6"), board.bRedGo);
-        // PV 续走 e6d6 是"黑车移动"而非红方吃子(它已经是黑子吃红车后的格子),
-        // 红方无子可吃 → 恢复值 0
+                java.util.Arrays.asList("d6e6"), board.bRedGo);
+        // 黑方吃红车对红方(轮走方)而言不是"我方吃回" → 恢复值 0 → 无补偿
         assertEquals(0.0, recovered, 1e-9);
     }
 

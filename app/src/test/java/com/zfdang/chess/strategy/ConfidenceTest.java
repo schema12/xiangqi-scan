@@ -39,8 +39,8 @@ public class ConfidenceTest {
     @Test public void depthThresholdsSeparateBasicAndFull() {
         assertEquals(Confidence.BASIC, Confidence.classify(o("h2e2", 0, 8, false, false, "h2e2", "e6e5")));
         assertEquals(Confidence.FULL, Confidence.classify(o("h2e2", 0, 12, false, false, "h2e2", "e6e5")));
-        // depth >= CONF_DEPTH_MIN 但无 PV:不足以进入排序
-        assertEquals(Confidence.INTERRUPTED,
+        // depth >= CONF_DEPTH_MIN 但无 PV:完整但可疑 → 仅诊断用途
+        assertEquals(Confidence.LIMITED,
                 Confidence.classify(o("h2e2", 0, 9, false, false)));
     }
 
@@ -48,9 +48,9 @@ public class ConfidenceTest {
         assertEquals(Confidence.INTERRUPTED, Confidence.classify(o("h2e2", 0, 3, false, false, "h2e2")));
     }
 
-    @Test public void emptyPvListIsAcceptedForNull() {
-        // pv 为空列表时 depth>=8 仍算 BASIC(列表非空由 pvUcci.isEmpty 判定)
-        assertEquals(Confidence.BASIC, Confidence.classify(
+    @Test public void emptyPvListIsDiagnosticsOnly() {
+        // depth 达标但没有任何 PV:完成但可疑 → LIMITED,不进入最终排序
+        assertEquals(Confidence.LIMITED, Confidence.classify(
                 new org.petero.droidfish.player.SearchOutcome(7, "h2e2", 0, 0, null, 8,
                         false, false, Collections.emptyList(), 1000, 100, false)));
     }
