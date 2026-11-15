@@ -73,9 +73,12 @@ class StrategySettingsDialog : DialogFragment() {
         })
 
         detailEntry.setOnClickListener {
+            // 防重:已有三级弹窗则不再叠加
+            (parentFragmentManager.findFragmentByTag(SettingDialogFragment.TAG_DETAIL)
+                    as? DialogFragment)?.dismissAllowingStateLoss()
             val detail = StrategyDetailDialog()
             detail.setController(controller)
-            detail.show(parentFragmentManager, "StrategyDetailDialog")
+            detail.show(parentFragmentManager, SettingDialogFragment.TAG_DETAIL)
         }
 
         builder.setView(view)

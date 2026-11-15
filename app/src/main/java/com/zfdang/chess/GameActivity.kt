@@ -366,12 +366,14 @@ class GameActivity() : AppCompatActivity(), View.OnTouchListener, ControllerList
                 controller.computerAskForMultiPV();
             }
             binding.optionbt -> {
-                // Show the dialog
+                // Show the dialog; dismiss any stacked settings dialogs first to
+                // guarantee a single fresh instance rendering current settings.
+                SettingDialogFragment.dismissAll(supportFragmentManager)
                 val dialog = SettingDialogFragment()
                 dialog.setController(controller)
                 dialog.listener = this
                 dialog.setEngineInfo(controller.engineInfo)
-                dialog.show(supportFragmentManager, "CustomDialog")
+                dialog.show(supportFragmentManager, SettingDialogFragment.TAG_MAIN)
             }
             binding.newbt -> {
                 // 新局：弹出棋局设置（先手方/双方执子方），确认后开新局

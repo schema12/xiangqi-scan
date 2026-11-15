@@ -25,6 +25,22 @@ class SettingDialogFragment : DialogFragment() {
     private lateinit var engineInfo: String
     var listener: SettingDialogListener? = null
 
+    companion object {
+        const val TAG_MAIN = "CustomDialog"
+        const val TAG_STRATEGY = "StrategySettingsDialog"
+        const val TAG_DETAIL = "StrategyDetailDialog"
+
+        /**
+         * 关闭所有设置相关弹窗(防叠加)。optionbt 每次点击都会 add 新实例,
+         * 不防重会出现多层叠加,刷新写到的 view 与顶层显示的 view 不一致。
+         */
+        fun dismissAll(fm: androidx.fragment.app.FragmentManager) {
+            for (tag in arrayOf(TAG_DETAIL, TAG_STRATEGY, TAG_MAIN)) {
+                (fm.findFragmentByTag(tag) as? DialogFragment)?.dismissAllowingStateLoss()
+            }
+        }
+    }
+
     fun setController(controller: GameController) {
         this.controller = controller
         this.settings = controller.settings
@@ -192,11 +208,23 @@ class SettingDialogFragment : DialogFragment() {
             }
         })
         strategyEntry.setOnClickListener {
+            // 二级弹窗关闭(保存或取消)时:关闭整个设置栈并重建一级,
+            // 保证所有文本都从最新 settings 渲染(避免多层叠加的幽灵弹窗)。
+            val fm = parentFragmentManager
+            val hostController = controller
+            val hostListener = listener
+            val hostEngineInfo = engineInfo
             val dialog = StrategySettingsDialog()
-            dialog.setController(controller)
-            // 二级弹窗关闭(保存或取消)时刷新一级页面的动态文本
-            dialog.onDismissCallback = { refreshDynamicTexts() }
-            dialog.show(parentFragmentManager, "StrategySettingsDialog")
+            dialog.setController(hostController)
+            dialog.onDismissCallback = {
+                dismissAll(fm)
+                val fresh = SettingDialogFragment()
+                fresh.setController(hostController)
+                fresh.listener = hostListener
+                fresh.setEngineInfo(hostEngineInfo)
+                fresh.show(fm, TAG_MAIN)
+            }
+            dialog.show(fm, TAG_STRATEGY)
         }
 
 
