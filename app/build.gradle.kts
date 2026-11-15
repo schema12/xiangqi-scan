@@ -168,7 +168,8 @@ dependencies {
 tasks.register<JavaExec>("buildAggressiveBook") {
     group = "book"
     description = "Build the aggressive opening book from bundled XQF games (build-time only)."
-    classpath = sourceSets["test"].runtimeClasspath
+    // AGP 在配置期之后才创建 "test" SourceSet,必须用惰性 provider
+    classpath(provider { sourceSets.getByName("test").runtimeClasspath })
     mainClass.set("booktools.BookBuilder")
     jvmArgs("-Xmx3g", "-Dfile.encoding=UTF-8")
     args(
