@@ -92,8 +92,7 @@ public final class SacrificeClassifier {
         }
 
         // C: sustained pressure without forced win. Checks are a bonus, never a requirement.
-        boolean pressure = attackTotal >= 0.5
-                && (f0(f) || hasOngoingPressure(pvUcci, moverRed));
+        boolean pressure = attackTotal >= 0.5 && hasOngoingPressure(pvUcci, moverRed);
         if (pressure && !r.opponentSafeExit) {
             r.type = TYPE_C_PRESSURE;
             r.compensation = Math.min(1.0, 0.4 + 0.3 * attackTotal);
@@ -104,12 +103,6 @@ public final class SacrificeClassifier {
         r.type = TYPE_A_BLUNDER;
         r.note = r.opponentSafeExit ? "opponent-captures-and-withdraws" : "no-compensation-found";
         return r;
-    }
-
-    private static boolean f0(AttackFeatureEngine.Features f) {
-        // placeholder hook: callers with features pass them via hasOngoingPressure;
-        // kept for future refinement of C-class evidence.
-        return false;
     }
 
     /** C-class needs visible ongoing play in the PV, not necessarily checks. */
