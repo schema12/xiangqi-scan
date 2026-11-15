@@ -15,6 +15,12 @@
 # 依赖:JDK 17(android.util.Log 使用桌面垫片;sqlite-jdbc 自动经阿里云镜像下载)
 set -e
 
+# 桌面 JDK:优先 JAVA_HOME(自动转 POSIX),否则沿用 PATH
+if [ -n "$JAVA_HOME" ] && [ -x "$(cygpath -u "$JAVA_HOME" 2>/dev/null || echo "$JAVA_HOME")/bin/javac" ]; then
+  export PATH="$(cygpath -u "$JAVA_HOME" 2>/dev/null || echo "$JAVA_HOME")/bin:$PATH"
+fi
+echo "[tool] javac = $(command -v javac) ($("$(command -v javac)" -version 2>&1))"
+
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 APP="$REPO/app"
