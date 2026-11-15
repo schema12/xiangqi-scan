@@ -213,6 +213,11 @@ public final class BookBuilder {
         File out = new File(outDb);
         out.getParentFile().mkdirs();
         if (out.exists()) out.delete();
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException cnfe) {
+            throw new RuntimeException("sqlite JDBC driver missing on classpath", cnfe);
+        }
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + out.getAbsolutePath())) {
             try (Statement st = conn.createStatement()) {
                 st.execute("CREATE TABLE bhobk(" +
