@@ -35,16 +35,21 @@ public class BHDatabase extends SQLiteAssetHelper {
      * throws and the old code silently retried forever. Callers must check this first
      * and run in an explicit "no book" mode instead of failing silently.
      *
-     * Detection uses a direct AssetManager.open() probe rather than list(): some ROMs
-     * mangle non-ASCII asset names in list() output (observed on vivo), while open()
-     * with the exact name always works — upstream's production app relies on open().
+     * Detection mirrors SQLiteAssetHelper's own lookup order: exact name first, then
+     * "<name>.zip" (the upstream asset is a zip archive of the 120MB SQLite file).
+     * A direct AssetManager.open() probe is used instead of list(): some ROMs mangle
+     * non-ASCII asset names in list() output (observed on vivo).
      */
     public static boolean assetExists(Context context) {
         if (context == null) return false;
-        try (java.io.InputStream ignored = context.getAssets().open("databases/" + DATABASE_NAME)) {
-            return true;
-        } catch (Throwable ignored) {
-            return false;
+        for (String candidate : new String[]{
+                "databases/" + DATABASE_NAME, "databases/" + DATABASE_NAME + ".zip"}) {
+            try (java.io.InputStream ignored = context.getAssets().open(candidate)) {
+                return true;
+            } catch (Throwable ignored) {
+                // try next candidate
+            }
         }
+        return false;
     }
 }

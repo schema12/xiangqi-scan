@@ -53,14 +53,19 @@ public class AggressiveOpenBook extends OpenBookBase {
     }
 
     /** 资产是否存在(无资产 → 显式无库模式,安全回退到引擎搜索)。
-     *  与 BHDatabase 相同:直接 open() 探测,规避 list() 对中文资产名的乱码。 */
+     *  与 BHDatabase 相同:镜像 SQLiteAssetHelper 的查找顺序(原名 → .zip),
+     *  用直接 open() 探测,规避 list() 对非 ASCII 资产名的乱码。 */
     public static boolean assetExists(Context context) {
         if (context == null) return false;
-        try (java.io.InputStream ignored = context.getAssets().open("databases/" + DATABASE_NAME)) {
-            return true;
-        } catch (Throwable ignored) {
-            return false;
+        for (String candidate : new String[]{
+                "databases/" + DATABASE_NAME, "databases/" + DATABASE_NAME + ".zip"}) {
+            try (java.io.InputStream ignored = context.getAssets().open(candidate)) {
+                return true;
+            } catch (Throwable ignored) {
+                // try next candidate
+            }
         }
+        return false;
     }
 
     public boolean isAvailable() {
