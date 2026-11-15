@@ -3,6 +3,7 @@ package booktools;
 import com.zfdang.chess.gamelogic.Board;
 import com.zfdang.chess.gamelogic.Move;
 import com.zfdang.chess.gamelogic.Piece;
+import com.zfdang.chess.gamelogic.Position;
 import com.zfdang.chess.gamelogic.Rule;
 import com.zfdang.chess.manuals.XQFManual;
 import com.zfdang.chess.manuals.XQFParser;
@@ -183,7 +184,7 @@ public final class BookBuilder {
         }
         System.out.println("[book] parsed=" + parsed + " standardStart=" + standard
                 + " replayed=" + replayed + " skipped=" + skipped
-                + " transitions=" + agg.size() + " positions=" + rows.size());
+                + " transitions=" + byKey.size());
 
         // 频次筛选 + 每局面限 8 着
         List<Row> selected = new ArrayList<>();
