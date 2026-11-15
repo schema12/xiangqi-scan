@@ -158,15 +158,24 @@ public class StrategyGatingTest {
                 true, true, true).diversityEnabled);
     }
 
-    @Test public void masterSwitchCarriedInProfile() {
+    @Test public void featureSwitchesCarriedInProfile() {
+        // withSwitches 只改功能开关;总开关(strategyEnabled)保留 base 值,
+        // 其门控在 GameController.strategyShouldRun(读取 Settings)实现。
         RiskProfile on = RiskProfile.withSwitches(
                 RiskProfile.of(80, 0.7, 0.7, 0.5, true), true, true, true, true,
                 true, true, true);
-        assertTrue(on.strategyEnabled);
         assertTrue(on.candidateSearch);
+        assertTrue(on.wdlEnabled);
+        assertTrue(on.attackFeatures);
+        assertTrue(on.sacrificeAnalysis);
+        assertTrue(on.diversityEnabled);
         RiskProfile off = RiskProfile.withSwitches(
-                RiskProfile.of(80, 0.7, 0.7, 0.5, true), false, true, true, true,
-                true, true, true);
-        assertFalse(off.strategyEnabled);
+                RiskProfile.of(80, 0.7, 0.7, 0.5, true), false, false, false, false,
+                true, true, false);
+        assertFalse(off.candidateSearch);
+        assertFalse(off.wdlEnabled);
+        assertFalse(off.attackFeatures);
+        assertFalse(off.sacrificeAnalysis);
+        assertFalse(off.diversityEnabled);
     }
 }
