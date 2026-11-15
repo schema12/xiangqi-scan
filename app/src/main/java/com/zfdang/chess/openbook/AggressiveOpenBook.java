@@ -52,16 +52,15 @@ public class AggressiveOpenBook extends OpenBookBase {
         }, "AggressiveBookInit").start();
     }
 
-    /** 资产是否存在(无资产 → 显式无库模式,安全回退到引擎搜索)。 */
+    /** 资产是否存在(无资产 → 显式无库模式,安全回退到引擎搜索)。
+     *  与 BHDatabase 相同:直接 open() 探测,规避 list() 对中文资产名的乱码。 */
     public static boolean assetExists(Context context) {
         if (context == null) return false;
-        try {
-            for (String name : context.getAssets().list("databases")) {
-                if (DATABASE_NAME.equals(name)) return true;
-            }
+        try (java.io.InputStream ignored = context.getAssets().open("databases/" + DATABASE_NAME)) {
+            return true;
         } catch (Throwable ignored) {
+            return false;
         }
-        return false;
     }
 
     public boolean isAvailable() {
