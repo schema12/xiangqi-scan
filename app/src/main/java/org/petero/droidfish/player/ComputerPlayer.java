@@ -75,6 +75,14 @@ public class ComputerPlayer {
     private SearchRequest searchRequest = null;
     private Thread engineMonitor;
 
+    /** "score mate N": N in moves, signed for the side to move; 0 = no mate score. Kept apart
+     *  from statScore so the strategy layer never treats mate distance as centipawns. */
+    private int statMateIn = 0;
+    /** Last info line's {W,D,L} per-mille (side to move POV); null when absent on that line. */
+    private int[] statWdl = null;
+    /** Optional consumer of completed searches (used by the aggressive-strategy layer). */
+    private volatile SearchOutcomeListener outcomeListener = null;
+
     // constructor to accept listener
     public ComputerPlayer(EngineListener engineListener, SearchListener searchListener, GameController gameController) {
         this.engineListener = engineListener;
@@ -380,7 +388,12 @@ public class ComputerPlayer {
             StringBuilder goCmd = new StringBuilder(96);
             // 这里的命令可以根据需要设置
             // https://github.com/official-pikafish/Pikafish/wiki/UCI-&-Commands#standard-commands
-            if(gameController!= null && gameController.settings != null) {
+            String overrideCmd = sr.getGoOverride();
+            if (overrideCmd != null && !overrideCmd.isEmpty()) {
+                // Per-request go command (aggressive-strategy candidate searches). The user's
+                // baseline budget is never touched: overrides only apply to restricted searches.
+                goCmd.append(overrideCmd);
+            } else if(gameController!= null && gameController.settings != null) {
                 goCmd.append(gameController.settings.getGoCmd());
             } else {
                 // default
@@ -523,6 +536,7 @@ public class ComputerPlayer {
                             Log.d("ComputerPlayer", "nextPonderMoveStr: " + nextPonderMoveStr);
                         }
 
+                        emitSearchOutcome(engineState.searchId, bestMoveStr, false);
                         reportMove(bestMoveStr, nextPonderMoveStr);
 
                         engineState.setState(EngineStateValue.IDLE);
@@ -545,6 +559,7 @@ public class ComputerPlayer {
                             Log.d("ComputerPlayer", "nextPonderMoveStr: " + nextPonderMoveStr);
                         }
 
+                        emitSearchOutcome(engineState.searchId, bestMoveStr, true);
                         reportMove(bestMoveStr, nextPonderMoveStr);
 
                         uci.writeLineToEngine("isready");
@@ -646,6 +661,8 @@ public class ComputerPlayer {
     private void clearInfo() {
         statCurrDepth = statPVDepth = statScore = 0;
         statIsMate = statUpperBound = statLowerBound = false;
+        statMateIn = 0;
+        statWdl = null;
         statTime = 0;
         statNodes = statTBHits = 0;
         statHash = 0;
@@ -678,6 +695,8 @@ public class ComputerPlayer {
             int nTokens = tokens.length;
             int i = 1;
             int pvNum = 0;
+            // wdl is line-local: a line without it must not inherit the previous line's values.
+            statWdl = null;
             while (i < nTokens - 1) {
                 String is = tokens[i++];
                 if (is.equals("depth")) {
@@ -722,16 +741,24 @@ public class ComputerPlayer {
                 } else if (is.equals("score")) {
                     statIsMate = tokens[i++].equals("mate");
                     statScore = Integer.parseInt(tokens[i++]);
+                    // Fix: keep mate distance apart from centipawns so consumers can never
+                    // mix "mate 3" (3 moves away) with "cp 3" (3 centipawns).
+                    statMateIn = statIsMate ? statScore : 0;
                     statUpperBound = false;
                     statLowerBound = false;
-                    if (tokens[i].equals("upperbound")) {
+                    if (i < nTokens && tokens[i].equals("upperbound")) {
                         statUpperBound = true;
                         i++;
-                    } else if (tokens[i].equals("lowerbound")) {
+                    } else if (i < nTokens && tokens[i].equals("lowerbound")) {
                         statLowerBound = true;
                         i++;
                     }
                     pvModified = true;
+                } else if (is.equals("wdl")) {
+                    int w = Integer.parseInt(tokens[i++]);
+                    int d = Integer.parseInt(tokens[i++]);
+                    int l = Integer.parseInt(tokens[i++]);
+                    statWdl = new int[]{w, d, l};
                 }
             }
             if (havePvData) {
@@ -814,5 +841,33 @@ public class ComputerPlayer {
             uciEngine.writeLineToEngine(command);
             Log.d("ComputerPlayer", "sendToEngine: " + command);
         }
+    }
+
+    /** Register a consumer that gets one {@link SearchOutcome} per completed search. */
+    public void setOutcomeListener(SearchOutcomeListener listener) {
+        this.outcomeListener = listener;
+    }
+
+    /**
+     * Emit the outcome of a finished search. Called on the monitor thread right after a
+     * bestmove was processed, for both natural completion and post-stop completion.
+     */
+    private void emitSearchOutcome(int id, String bestMoveStr, boolean afterStop) {
+        SearchOutcomeListener listener = outcomeListener;
+        if (listener == null) return;
+        int[] wdl = statWdl;
+        listener.onSearchOutcome(new SearchOutcome(
+                id,
+                bestMoveStr,
+                statIsMate ? 0 : statScore,
+                statIsMate ? statScore : 0,
+                wdl,
+                statPVDepth > 0 ? statPVDepth : statCurrDepth,
+                statUpperBound,
+                statLowerBound,
+                statPV,
+                statNodes,
+                statTime,
+                afterStop));
     }
 }

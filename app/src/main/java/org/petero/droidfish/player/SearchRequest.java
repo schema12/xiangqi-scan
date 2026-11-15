@@ -34,6 +34,14 @@ public class SearchRequest {
     ArrayList<Move> searchMoves; // Moves to search, or null to search all moves
 
     /**
+     * Full "go ..." command override for this request (e.g. "go movetime 800").
+     * When set it replaces the user's configured go command; any searchMoves of this
+     * request are still appended after it (searchmoves must stay last on the line).
+     * Null means the user's settings decide, as before.
+     */
+    private String goOverride = null;
+
+    /**
      * Create a request to start an engine.
      *
      * @param id     Search ID.
@@ -46,6 +54,23 @@ public class SearchRequest {
         sr.isEval = false;
         sr.engineName = engine;
         return sr;
+    }
+
+    /** Override the user's configured "go" command for this search only. */
+    public void setGoOverride(String goCommand) {
+        this.goOverride = goCommand;
+    }
+
+    public String getGoOverride() {
+        return goOverride;
+    }
+
+    public int getSearchId() {
+        return searchId;
+    }
+
+    public void setSearchMoves(ArrayList<Move> moves) {
+        this.searchMoves = moves;
     }
 
     /**
