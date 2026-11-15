@@ -14,10 +14,12 @@ import com.zfdang.chess.gamelogic.Piece;
 import com.zfdang.chess.gamelogic.Position;
 import com.zfdang.chess.gamelogic.PvInfo;
 import com.zfdang.chess.gamelogic.Rule;
+import com.zfdang.chess.openbook.AggressiveOpenBook;
 import com.zfdang.chess.openbook.BHOpenBook;
 import com.zfdang.chess.openbook.BookCandidate;
 import com.zfdang.chess.openbook.BookData;
 import com.zfdang.chess.openbook.OpenBook;
+import com.zfdang.chess.openbook.OpeningBookRouter;
 import com.zfdang.chess.strategy.PlayLogger;
 import com.zfdang.chess.strategy.RiskDecisionEngine;
 import com.zfdang.chess.strategy.RiskProfile;
@@ -73,8 +75,10 @@ public class GameController implements EngineListener, SearchListener {
     protected List<PvInfo> suggestedPVs = Collections.emptyList();
 
     BHOpenBook bhBook = null;
+    /** 激进专用开局库(独立资产、独立加载;仅在激进模式且开关开启时查询)。 */
+    AggressiveOpenBook aggressiveBook = null;
 
-    /** 激进策略决策器(仅 risk>0 时存在);null = 走原版 Pikafish bestmove 路径。 */
+    /** 激进策略决策器(仅总开关开且 risk>0 时存在);null = 走原版 Pikafish bestmove 路径。 */
     private RiskDecisionEngine decisionEngine = null;
     /** 策略决策日志(真实构造时初始化;测试构造保持 null)。 */
     private PlayLogger playLogger = null;
@@ -177,6 +181,7 @@ public class GameController implements EngineListener, SearchListener {
         searchId = 0;
 
         bhBook = new BHOpenBook(ChessApp.getContext());
+        aggressiveBook = new AggressiveOpenBook(ChessApp.getContext());
 
         settings = new Settings(ChessApp.getContext());
         playLogger = new PlayLogger(ChessApp.getContext());
@@ -412,23 +417,34 @@ public class GameController implements EngineListener, SearchListener {
     // 激进策略决策路径(design: xiangqi-risk-design-final-v2.md)
     // ------------------------------------------------------------------
 
-    /** risk>0 且当前没有进行中的决策时,启用策略层。 */
+    /** 总开关开启、risk>0 且当前没有进行中的决策时,启用策略层。 */
     private boolean strategyShouldRun() {
         if (decisionEngine != null || settings == null) return false;
+        if (!settings.getStrategyEnabled()) return false;
         return RiskProfile.fromSettings(settings).hasAttackCandidates();
     }
 
-    /** 策略入口:先查开局库(后台线程),再启动统一决策流程。 */
+    /** 策略入口:按路由查询两套开局库之一(后台线程),再启动统一决策流程。 */
     private void startStrategyForward() {
         final RiskProfile profile = RiskProfile.fromSettings(settings);
         final boolean redGo = isRedTurn();
-        if (settings.getOpenbook() && bhBook != null) {
+        if (settings.getOpenbook()) {
+            // 开局库路由(设计 §四):激进模式 + Risk>0 + 激进开局库开启 → 激进库;
+            // 其余(总开关关/Risk=0/激进库关)→ 原版开局库。
+            final OpeningBookRouter.Book source = OpeningBookRouter.select(
+                    settings.getStrategyEnabled(), profile.riskLevel,
+                    settings.getAggressiveBookEnabled(),
+                    aggressiveBook != null && aggressiveBook.isAvailable());
             new Thread(() -> {
                 List<BookCandidate> cands = Collections.emptyList();
                 try {
-                    GcLog.d("strategy openbook query start");
+                    GcLog.d("strategy openbook query start: source=" + source);
                     long vkey = game.currentBoard.getZobrist(redGo);
-                    cands = bhBook.queryDetailed(vkey, redGo);
+                    if (source == OpeningBookRouter.Book.AGGRESSIVE) {
+                        cands = aggressiveBook.queryDetailed(vkey, redGo);
+                    } else {
+                        cands = bhBook.queryDetailed(vkey, redGo);
+                    }
                 } catch (Throwable t) {
                     GcLog.d("strategy openbook query failed: " + t);
                 }
@@ -701,6 +717,13 @@ public class GameController implements EngineListener, SearchListener {
         Map<String, String> uciOptions = new HashMap<>();
         uciOptions.put("Hash", String.valueOf(settings.getHash_size()));
         player.setUCIOptions(uciOptions);
+        // 总开关(或 risk)被改到关闭时:使尚未提交的激进决策失效,
+        // cancel() 会安全提交已锁定的原版 bestMove,不会让迟到的旧结果继续生效。
+        if (settings != null && !settings.getStrategyEnabled()
+                && decisionEngine != null && decisionEngine.isActive()) {
+            GcLog.d("strategy disabled mid-decision -> cancel & fallback to baseline");
+            decisionEngine.cancel();
+        }
     }
 
 

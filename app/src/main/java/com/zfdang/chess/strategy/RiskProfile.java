@@ -20,9 +20,20 @@ public final class RiskProfile {
     public final boolean strengthGuard;
     public final boolean enhancedThinking; // true = mode B (2x budget, opt-in)
     public final boolean wdlEnabled;
+    // ---- user-facing feature switches (design: 增量开发任务 §三) ----
+    public final boolean candidateSearch;    // 额外候选搜索
+    public final boolean attackFeatures;     // 攻击特征评分
+    public final boolean sacrificeAnalysis;  // 弃子补偿分析
+    public final boolean aggressiveBook;     // 激进开局库
+    public final boolean openingStyle;       // 开局风格偏好
+    public final boolean diversityEnabled;   // 多样性评分
+    public final boolean strategyEnabled;    // 总开关
 
     private RiskProfile(int riskLevel, double alpha, double beta, double gamma,
-                        boolean strengthGuard, boolean enhancedThinking, boolean wdlEnabled) {
+                        boolean strengthGuard, boolean enhancedThinking, boolean wdlEnabled,
+                        boolean candidateSearch, boolean attackFeatures, boolean sacrificeAnalysis,
+                        boolean aggressiveBook, boolean openingStyle, boolean diversityEnabled,
+                        boolean strategyEnabled) {
         this.riskLevel = riskLevel;
         this.alpha = alpha;
         this.beta = beta;
@@ -30,6 +41,13 @@ public final class RiskProfile {
         this.strengthGuard = strengthGuard;
         this.enhancedThinking = enhancedThinking;
         this.wdlEnabled = wdlEnabled;
+        this.candidateSearch = candidateSearch;
+        this.attackFeatures = attackFeatures;
+        this.sacrificeAnalysis = sacrificeAnalysis;
+        this.aggressiveBook = aggressiveBook;
+        this.openingStyle = openingStyle;
+        this.diversityEnabled = diversityEnabled;
+        this.strategyEnabled = strategyEnabled;
     }
 
     public static RiskProfile fromSettings(Settings s) {
@@ -51,13 +69,32 @@ public final class RiskProfile {
         return new RiskProfile(risk, alpha, beta, gamma,
                 s.getStrengthGuard(),
                 "B".equals(s.getThinkingMode()),
-                s.getShowWdl());
+                s.getShowWdl(),
+                s.getCandidateSearchEnabled(),
+                s.getAttackFeaturesEnabled(),
+                s.getSacrificeAnalysisEnabled(),
+                s.getAggressiveBookEnabled(),
+                s.getOpeningStyleEnabled(),
+                s.getDiversityEnabled(),
+                s.getStrategyEnabled());
     }
 
-    /** Test/analysis factory with explicit values. */
+    /** Test/analysis factory with explicit values; every module switch defaults to on. */
     public static RiskProfile of(int riskLevel, double alpha, double beta, double gamma,
                                  boolean strengthGuard) {
-        return new RiskProfile(riskLevel, alpha, beta, gamma, strengthGuard, false, true);
+        return new RiskProfile(riskLevel, alpha, beta, gamma, strengthGuard, false, true,
+                true, true, true, true, true, true, true);
+    }
+
+    /** Test/analysis factory: derive from an existing profile with explicit module switches. */
+    public static RiskProfile withSwitches(RiskProfile base, boolean candidateSearch, boolean wdlEnabled,
+                                           boolean attackFeatures, boolean sacrificeAnalysis,
+                                           boolean aggressiveBook, boolean openingStyle,
+                                           boolean diversityEnabled) {
+        return new RiskProfile(base.riskLevel, base.alpha, base.beta, base.gamma,
+                base.strengthGuard, base.enhancedThinking, wdlEnabled,
+                candidateSearch, attackFeatures, sacrificeAnalysis,
+                aggressiveBook, openingStyle, diversityEnabled, base.strategyEnabled);
     }
 
     /** alpha = ((r - 0.20)/0.80)^1.2 for r > 0.20, else 0 (design B.1). */

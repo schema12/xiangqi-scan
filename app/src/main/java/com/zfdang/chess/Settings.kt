@@ -57,6 +57,23 @@ class Settings(private val context: Context) {
     private val gamma_override_key: String = "gamma_override"
     var gammaOverride = -1
 
+    // 总开关:新安装默认关闭,升级后原版对弈体验不变
+    private val strategy_enabled_key: String = "strategy_enabled"
+    var strategyEnabled = false
+    // 独立功能开关(总开关关闭时全部不生效,但配置保留)
+    private val candidate_search_key: String = "candidate_search_enabled"
+    var candidateSearchEnabled = true
+    private val attack_features_key: String = "attack_features_enabled"
+    var attackFeaturesEnabled = true
+    private val sacrifice_key: String = "sacrifice_analysis_enabled"
+    var sacrificeAnalysisEnabled = true
+    private val aggressive_book_key: String = "aggressive_book_enabled"
+    var aggressiveBookEnabled = true
+    private val opening_style_key: String = "opening_style_enabled"
+    var openingStyleEnabled = true
+    private val diversity_key: String = "diversity_enabled"
+    var diversityEnabled = true
+
     init {
         loadSettings()
 
@@ -79,6 +96,13 @@ class Settings(private val context: Context) {
         alphaOverride = getInt(alpha_override_key, -1)
         betaOverride = getInt(beta_override_key, -1)
         gammaOverride = getInt(gamma_override_key, -1)
+        strategyEnabled = getBoolean(strategy_enabled_key, false)
+        candidateSearchEnabled = getBoolean(candidate_search_key, true)
+        attackFeaturesEnabled = getBoolean(attack_features_key, true)
+        sacrificeAnalysisEnabled = getBoolean(sacrifice_key, true)
+        aggressiveBookEnabled = getBoolean(aggressive_book_key, true)
+        openingStyleEnabled = getBoolean(opening_style_key, true)
+        diversityEnabled = getBoolean(diversity_key, true)
     }
 
     private fun loadSettings() {
@@ -112,6 +136,13 @@ class Settings(private val context: Context) {
         setInt(alpha_override_key, alphaOverride)
         setInt(beta_override_key, betaOverride)
         setInt(gamma_override_key, gammaOverride)
+        setBoolean(strategy_enabled_key, strategyEnabled)
+        setBoolean(candidate_search_key, candidateSearchEnabled)
+        setBoolean(attack_features_key, attackFeaturesEnabled)
+        setBoolean(sacrifice_key, sacrificeAnalysisEnabled)
+        setBoolean(aggressive_book_key, aggressiveBookEnabled)
+        setBoolean(opening_style_key, openingStyleEnabled)
+        setBoolean(diversity_key, diversityEnabled)
 
         // save to file
         try {

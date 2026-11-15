@@ -71,6 +71,7 @@ public final class RiskDecisionEngine {
     private int expectedSearchId = -1;
     private boolean cancelled = false;
     private boolean committed = false;
+    private boolean wdlRequested = false;
 
     private String lockedBest = null;           // permanent fallback, set when baseline arrives
     private UciScoreNormalizer.DecisionScore baselineScore = null;
@@ -99,7 +100,10 @@ public final class RiskDecisionEngine {
         if (state != State.IDLE) return;
         state = State.BASELINE_RUNNING;
         host.status("策略分析中(风险 " + profile.riskLevel + ")...");
-        if (profile.wdlEnabled) {
+        // WDL data is only consumed by candidate scoring; skip the option entirely
+        // when the candidate pool is disabled (dependency rule, design §三.3).
+        wdlRequested = profile.wdlEnabled && profile.candidateSearch;
+        if (wdlRequested) {
             host.sendRawCommand("setoption name UCI_ShowWDL value true");
         }
         expectedSearchId = host.startBaselineSearch();
@@ -193,6 +197,17 @@ public final class RiskDecisionEngine {
             commit(lockedBest, baselineConfidence < Confidence.BASIC ? "weak-baseline" : "alpha-zero");
             return;
         }
+        // 用户开关:额外候选搜索关闭 → 只走基线(原版行为,无额外 searchmoves)。
+        if (!profile.candidateSearch) {
+            commit(lockedBest, "candidate-search-disabled");
+            return;
+        }
+        // 依赖自动处理:三个评分来源(攻击特征/弃子补偿/WDL)全部关闭时,
+        // 候选搜索没有任何可选收益 → 自动跳过,避免无意义耗时。
+        if (!profile.attackFeatures && !profile.sacrificeAnalysis && !profile.wdlEnabled) {
+            commit(lockedBest, "all-scoring-disabled");
+            return;
+        }
 
         // Budgets (design G.1). Baseline keeps the user's own budget; candidates get
         // a capped extra pool. Mode B doubles the candidate pool and must only be
@@ -266,13 +281,26 @@ public final class RiskDecisionEngine {
         if (!continuation.isEmpty() && cand.ucci.equals(continuation.get(0))) {
             continuation = continuation.subList(1, continuation.size());
         }
-        AttackFeatureEngine.Features feats = AttackFeatureEngine.compute(
-                rootBoard, cand.ucci, continuation);
-        if (o.mateIn > 0) feats.mateThreat = 1.0;
+        AttackFeatureEngine.Features feats;
+        if (profile.attackFeatures) {
+            feats = AttackFeatureEngine.compute(rootBoard, cand.ucci, continuation);
+            if (o.mateIn > 0) feats.mateThreat = 1.0;
+        } else {
+            feats = new AttackFeatureEngine.Features(); // 攻击特征评分关闭:A=0、复杂度=0
+        }
         Move mv = new Move(rootBoard);
         mv.fromUCCIString(cand.ucci);
-        SacrificeClassifier.Result sac = SacrificeClassifier.classify(
-                rootBoard, mv, continuation, feats.totalAttack(), cand.book, profile);
+        SacrificeClassifier.Result sac;
+        if (profile.sacrificeAnalysis) {
+            sac = SacrificeClassifier.classify(
+                    rootBoard, mv, continuation, feats.totalAttack(), cand.book, profile);
+        } else {
+            // 弃子补偿分析关闭:不做弃子分类(C=0)。材料硬闸门仍在第一层独立生效。
+            sac = new SacrificeClassifier.Result();
+            sac.netLoss = MaterialBalance.worstOpponentCaptureNet(
+                    rootBoardAfterMove(mv), rootBoard.bRedGo);
+            sac.note = "sacrifice-analysis-disabled";
+        }
 
         Double winUtility = null;
         if (profile.wdlEnabled && baselineScore != null && baselineScore.wdl != null
@@ -282,8 +310,14 @@ public final class RiskDecisionEngine {
 
         Scored s = ScoreFusion.evaluate(cand, ds, feats, sac, conf, profile,
                 deltaEff, baselineScore.cp, winUtility,
-                ScoreFusion.openingBonus(cand.book));
+                profile.openingStyle ? ScoreFusion.openingBonus(cand.book) : 0.0);
         evaluated.add(s);
+    }
+
+    private Board rootBoardAfterMove(Move mv) {
+        Board after = new Board(rootBoard);
+        after.doMove(mv);
+        return after;
     }
 
     private void finish() {
@@ -308,7 +342,7 @@ public final class RiskDecisionEngine {
         if (committed) return;
         committed = true;
         state = State.TERMINAL;
-        if (profile.wdlEnabled) {
+        if (wdlRequested) {
             host.sendRawCommand("setoption name UCI_ShowWDL value false");
         }
         logDecision(ucci, reason);

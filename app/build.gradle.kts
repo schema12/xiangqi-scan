@@ -156,9 +156,27 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
+    // 开局库构建期工具与数据完整性测试使用(仅测试类路径,不会进入 APK)
+    testImplementation("org.xerial:sqlite-jdbc:3.45.1.0")
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.junit.jupiter)
+}
+
+// 构建期工具:把仓库自带 XQF 棋谱转换为激进专用开局库(不参与 assemble)。
+// 用法: ./gradlew buildAggressiveBook -PbookPikafish=<pikafish.exe 路径>
+tasks.register<JavaExec>("buildAggressiveBook") {
+    group = "book"
+    description = "Build the aggressive opening book from bundled XQF games (build-time only)."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("booktools.BookBuilder")
+    jvmArgs("-Xmx3g", "-Dfile.encoding=UTF-8")
+    args(
+        (findProperty("bookSrc") ?: layout.projectDirectory.file("src/main/assets/XQF").asFile.absolutePath),
+        (findProperty("bookPikafish") ?: "").toString(),
+        (findProperty("bookNnue") ?: layout.projectDirectory.file("src/main/assets/pikafish/pikafish-2026-09-06.nnue").asFile.absolutePath),
+        (findProperty("bookOut") ?: layout.projectDirectory.file("src/main/assets/databases/aggressive_book_v1.obk").asFile.absolutePath)
+    )
 }
 
 // Keep the offline native privacy page and the published website on one source document.

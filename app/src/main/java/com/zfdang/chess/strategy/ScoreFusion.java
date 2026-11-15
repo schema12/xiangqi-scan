@@ -161,8 +161,9 @@ public final class ScoreFusion {
         if (best.softScore <= 0.0) {
             return new Selection(null, "max-score<=0-keep-baseline");
         }
-        // Diversity: only among near-ties of the best score, only when gamma > 0.
-        if (profile.gamma > 0.0) {
+        // Diversity: only among near-ties of the best score, only when the diversity
+        // switch is on and gamma > 0.
+        if (profile.diversityEnabled && profile.gamma > 0.0) {
             List<Scored> ties = new ArrayList<>();
             for (Scored s : valid) {
                 if (best.softScore - s.softScore <= StrategyParams.NEAR_TIE_BAND) ties.add(s);

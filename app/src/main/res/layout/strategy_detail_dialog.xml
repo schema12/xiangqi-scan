@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipToPadding="false">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="16dp">
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/boolean_advanced_override"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="独立调节三个维度(关闭 = 跟随风险等级)"
+            android:textSize="14sp"
+            android:textColor="@color/ui_ink"
+            app:useMaterialThemeColors="false"
+                app:thumbTint="@color/ui_switch_thumb"
+                app:trackTint="@color/ui_switch_track" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="进攻冒险 α"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_alpha"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_alpha"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="开局偏门 β"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_beta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_beta"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="着法多样性 γ"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_gamma"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_gamma"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="维度覆盖决定各评分通道的权重上限;合法着法校验、评估退化上限、杀棋保护、超时与回退、单次提交始终生效。"
+            android:textSize="12sp"
+            android:textColor="@color/ui_muted"
+            android:paddingStart="4dp"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+</ScrollView>
