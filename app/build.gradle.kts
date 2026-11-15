@@ -159,7 +159,7 @@ dependencies {
     // 开局库构建期工具与数据完整性测试使用(仅测试类路径,不会进入 APK)
     testImplementation("org.xerial:sqlite-jdbc:3.45.1.0")
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.junit.jupiter)
 }
 
