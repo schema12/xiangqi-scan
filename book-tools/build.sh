@@ -39,6 +39,16 @@ if [ ! -f "$SQLITE" ]; then
   curl -sL --max-time 120 -o "$SQLITE" \
     "https://maven.aliyun.com/repository/public/org/xerial/sqlite-jdbc/3.45.1.0/sqlite-jdbc-3.45.1.0.jar"
 fi
+SLF4J_API="$RUN/slf4j-api.jar"
+SLF4J_NOP="$RUN/slf4j-nop.jar"
+if [ ! -f "$SLF4J_API" ]; then
+  curl -sL --max-time 60 -o "$SLF4J_API" \
+    "https://maven.aliyun.com/repository/public/org/slf4j/slf4j-api/2.0.9/slf4j-api-2.0.9.jar"
+fi
+if [ ! -f "$SLF4J_NOP" ]; then
+  curl -sL --max-time 60 -o "$SLF4J_NOP" \
+    "https://maven.aliyun.com/repository/public/org/slf4j/slf4j-nop/2.0.9/slf4j-nop-2.0.9.jar"
+fi
 
 # 桌面垫片:android.util.Log 空实现(仓库源码在桌面 JVM 引用它)
 cat > "$RUN/android/util/Log.java" <<'EOF'
@@ -66,6 +76,6 @@ javac -encoding UTF-8 -nowarn \
   "$RUN/android/util/Log.java" \
   "$HERE/src/booktools/BookBuilder.java"
 
-CP="$(cygpath -w "$RUN/classes" 2>/dev/null || echo "$RUN/classes");$(cygpath -w "$JBBP" 2>/dev/null || echo "$JBBP");$(cygpath -w "$SQLITE" 2>/dev/null || echo "$SQLITE")"
+CP="$(cygpath -w "$RUN/classes" 2>/dev/null || echo "$RUN/classes");$(cygpath -w "$JBBP" 2>/dev/null || echo "$JBBP");$(cygpath -w "$SQLITE" 2>/dev/null || echo "$SQLITE");$(cygpath -w "$SLF4J_API" 2>/dev/null || echo "$SLF4J_API");$(cygpath -w "$SLF4J_NOP" 2>/dev/null || echo "$SLF4J_NOP")"
 echo "[tool] running BookBuilder"
 java -Xmx3g -Dfile.encoding=UTF-8 -cp "$CP" booktools.BookBuilder "$1" "$2" "$3" "$4"
