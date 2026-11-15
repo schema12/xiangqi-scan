@@ -33,6 +33,15 @@ class SettingDialogFragment : DialogFragment() {
         engineInfo = info
     }
 
+    /** 二级弹窗(激进策略设置)保存后返回时,刷新入口行摘要(总开关状态会变)。 */
+    override fun onResume() {
+        super.onResume()
+        if (this::settings.isInitialized) {
+            view?.findViewById<TextView>(R.id.textview_strategy_summary)
+                ?.text = strategySummaryText(settings)
+        }
+    }
+
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val builder = MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_Chess_Dialog)
             .setBackground(AppCompatResources.getDrawable(requireContext(), R.drawable.ui_dialog_background))
