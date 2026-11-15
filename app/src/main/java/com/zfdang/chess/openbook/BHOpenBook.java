@@ -20,6 +20,8 @@ public class BHOpenBook extends OpenBookBase {
     private String name;
     private BHDatabase bhDB = null;
     SQLiteDatabase db = null;
+    /** False when the database asset is missing: explicit "no book" mode, no silent retries. */
+    private boolean available = false;
 
     // 首次资产拷贝跨实例串行化：GameController 与 GameActivity 各持一个实例，
     // 并发拷贝同一文件会互相破坏（B 看到半成品→判损坏→删除 A 正在写的文件）
@@ -30,6 +32,14 @@ public class BHOpenBook extends OpenBookBase {
         bhDB = new BHDatabase(context);
 
         name = bhDB.OPENBOOK_NAME;
+        // 修复静默失败:资产缺失时直接进入"无库模式"(查询返回空,UI 可明示),
+        // 不再后台无限懒重试。
+        if (!BHDatabase.assetExists(context)) {
+            available = false;
+            Log.w("BHOpenBook", "openbook asset missing -> running in no-book mode");
+            return;
+        }
+        available = true;
         // 首次打开需从 assets 解压拷贝 120MB 资产，耗时可达数分钟；
         // 必须放在后台线程，否则主线程阻塞 5s 即 ANR 被系统杀死（拷贝中断还会造成库文件损坏循环）
         // 拷贝完成前查询走 dbOrNull() 懒重试，未就绪时返回空列表正常跳过
@@ -53,6 +63,61 @@ public class BHOpenBook extends OpenBookBase {
                 }
             }
         }, "BHOpenBookInit").start();
+    }
+
+    /** True when a database asset exists and opening is possible. */
+    public boolean isAvailable() {
+        return available;
+    }
+
+    /**
+     * Enriched query for the unified strategy flow: returns multiple candidates with
+     * optional quality metadata (tag/objEval/refuted/class). When the shipped database
+     * predates the enriched schema the query degrades to legacy columns and every
+     * candidate is marked unverified (metadata null) — it then faces the same
+     * restricted-search verification as ordinary moves. Ordering is deterministic
+     * (score desc, win desc); no random comparator is involved.
+     */
+    public java.util.List<BookCandidate> queryDetailed(long vkey, boolean redGo) {
+        java.util.List<BookCandidate> list = new java.util.ArrayList<>();
+        if (!available) return list;
+        SQLiteDatabase d = dbOrNull();
+        if (d == null) return list;
+        String sql = "select vmove,vscore,vwin,vdraw,vlost,tag,obj_eval,refuted,class,source"
+                + " from bhobk where vvalid = 1 and vkey = " + vkey
+                + " order by vscore desc, vwin desc limit " + 8;
+        try (Cursor cursor = d.rawQuery(sql, null)) {
+            while (cursor.moveToNext()) {
+                String move = Zobrist.getMoveFromVmove(cursor.getInt(cursor.getColumnIndexOrThrow("vmove")));
+                int score = cursor.getInt(cursor.getColumnIndexOrThrow("vscore"));
+                double winRate = cursor.getDouble(cursor.getColumnIndexOrThrow("vwin"));
+                String tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"));
+                int objEvalIdx = cursor.getColumnIndex("obj_eval");
+                Integer objEval = objEvalIdx >= 0 && !cursor.isNull(objEvalIdx) ? cursor.getInt(objEvalIdx) : null;
+                int refutedIdx = cursor.getColumnIndex("refuted");
+                boolean refuted = refutedIdx >= 0 && cursor.getInt(refutedIdx) != 0;
+                String klass = cursor.getString(cursor.getColumnIndexOrThrow("class"));
+                String source = cursor.getString(cursor.getColumnIndexOrThrow("source"));
+                list.add(new BookCandidate(move, score, winRate, tag, objEval, refuted, klass, source));
+            }
+            return list;
+        } catch (Exception enrichedFailed) {
+            Log.d("BHOpenBook", "enriched query failed, falling back to legacy columns: " + enrichedFailed.getMessage());
+        }
+        // Legacy schema fallback: statistics columns only, metadata stays unverified.
+        String legacy = "select * from bhobk where vvalid = 1 and vkey = " + vkey
+                + " order by vscore desc, vwin desc limit " + 8;
+        try (Cursor cursor = d.rawQuery(legacy, null)) {
+            while (cursor.moveToNext()) {
+                String move = Zobrist.getMoveFromVmove(cursor.getInt(cursor.getColumnIndexOrThrow("vmove")));
+                int score = cursor.getInt(cursor.getColumnIndexOrThrow("vscore"));
+                double winRate = cursor.getDouble(cursor.getColumnIndexOrThrow("vwin"));
+                list.add(new BookCandidate(move, score, winRate, null, null, false, null, this.name));
+            }
+        } catch (Exception e) {
+            Log.d("BHOpenBook", "get: " + e.getMessage());
+        }
+        return list;
     }
 
 

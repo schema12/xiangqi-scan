@@ -50,7 +50,12 @@ class SettingDialogFragment : DialogFragment() {
 
         val booleanOpenbook = view.findViewById<CompoundButton>(R.id.boolean_openbook)
         val textviewOpenbook = view.findViewById<TextView>(R.id.textViewOpenBook)
-        textviewOpenbook.text = "(" + BHDatabase.OPENBOOK_NAME + ")"
+        // 修复静默失败:无库时明示,而不是后台无限懒重试
+        textviewOpenbook.text = if (BHDatabase.assetExists(requireContext())) {
+            "(" + BHDatabase.OPENBOOK_NAME + ")"
+        } else {
+            "(无开局库:未随包提供,由引擎直接搜索)"
+        }
 
         val booleanSound = view.findViewById<CompoundButton>(R.id.boolean_sound)
 
@@ -74,6 +79,18 @@ class SettingDialogFragment : DialogFragment() {
         val seekbarHash = view.findViewById<SeekBar>(R.id.seekbar_hash)
         val textviewHash = view.findViewById<TextView>(R.id.textview_hash)
 
+        // ---- 激进策略区 ----
+        val seekbarRisk = view.findViewById<SeekBar>(R.id.seekbar_risk)
+        val textviewRisk = view.findViewById<TextView>(R.id.textview_risk)
+        val guardSwitch = view.findViewById<CompoundButton>(R.id.boolean_strength_guard)
+        val advancedSwitch = view.findViewById<CompoundButton>(R.id.boolean_advanced_override)
+        val seekbarAlpha = view.findViewById<SeekBar>(R.id.seekbar_alpha)
+        val textviewAlpha = view.findViewById<TextView>(R.id.textview_alpha)
+        val seekbarBeta = view.findViewById<SeekBar>(R.id.seekbar_beta)
+        val textviewBeta = view.findViewById<TextView>(R.id.textview_beta)
+        val seekbarGamma = view.findViewById<SeekBar>(R.id.seekbar_gamma)
+        val textviewGamma = view.findViewById<TextView>(R.id.textview_gamma)
+
         // set the initial values
         if (this.settings != null) {
             booleanOpenbook.isChecked = this.settings.openbook
@@ -96,6 +113,15 @@ class SettingDialogFragment : DialogFragment() {
             seekbarHash.progress = this.settings.hash_size
             textviewHash.text = this.settings.hash_size.toString()
             randomMove.isChecked = this.settings.random_move
+            seekbarRisk.progress = this.settings.riskLevel
+            textviewRisk.text = "${this.settings.riskLevel} · " + presetName(this.settings.riskLevel)
+            guardSwitch.isChecked = this.settings.strengthGuard
+            advancedSwitch.isChecked = this.settings.alphaOverride >= 0
+            seekbarAlpha.progress = if (this.settings.alphaOverride >= 0) this.settings.alphaOverride else 50
+            seekbarBeta.progress = if (this.settings.betaOverride >= 0) this.settings.betaOverride else 50
+            seekbarGamma.progress = if (this.settings.gammaOverride >= 0) this.settings.gammaOverride else 50
+            updateAdvancedTexts(textviewAlpha, textviewBeta, textviewGamma,
+                    seekbarAlpha, seekbarBeta, seekbarGamma, advancedSwitch.isChecked)
         }
 
         historyInput.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -150,6 +176,30 @@ class SettingDialogFragment : DialogFragment() {
                 // Do something
             }
         })
+        seekbarRisk.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                textviewRisk.text = "$progress · " + presetName(progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
+        val advancedListener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                updateAdvancedTexts(textviewAlpha, textviewBeta, textviewGamma,
+                        seekbarAlpha, seekbarBeta, seekbarGamma, advancedSwitch.isChecked)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        }
+        seekbarAlpha.setOnSeekBarChangeListener(advancedListener)
+        seekbarBeta.setOnSeekBarChangeListener(advancedListener)
+        seekbarGamma.setOnSeekBarChangeListener(advancedListener)
+        advancedSwitch.setOnCheckedChangeListener { _, checked ->
+            updateAdvancedTexts(textviewAlpha, textviewBeta, textviewGamma,
+                    seekbarAlpha, seekbarBeta, seekbarGamma, checked)
+        }
 
 
         builder.setView(view)
@@ -166,6 +216,12 @@ class SettingDialogFragment : DialogFragment() {
                 settings.red_go_first = redgoFirst.isChecked
                 settings.hash_size = seekbarHash.progress
                 settings.random_move = randomMove.isChecked
+                settings.riskLevel = seekbarRisk.progress
+                settings.strengthGuard = guardSwitch.isChecked
+                // 关闭高级覆盖时写 -1,策略层自动跟随风险滑块的连续曲线
+                settings.alphaOverride = if (advancedSwitch.isChecked) seekbarAlpha.progress else -1
+                settings.betaOverride = if (advancedSwitch.isChecked) seekbarBeta.progress else -1
+                settings.gammaOverride = if (advancedSwitch.isChecked) seekbarGamma.progress else -1
                 settings.saveSettings()
                 controller.applyEngineSetting()
                 listener?.onDialogPositiveClick()
@@ -176,5 +232,27 @@ class SettingDialogFragment : DialogFragment() {
             }
 
         return builder.create()
+    }
+
+    private fun presetName(risk: Int): String = when {
+        risk <= 20 -> "稳健"
+        risk <= 40 -> "均衡"
+        risk <= 60 -> "主动进攻"
+        risk <= 85 -> "激进争胜"
+        else -> "极端冒险"
+    }
+
+    private fun updateAdvancedTexts(alphaView: TextView, betaView: TextView, gammaView: TextView,
+                                    alphaBar: SeekBar, betaBar: SeekBar, gammaBar: SeekBar,
+                                    enabled: Boolean) {
+        if (!enabled) {
+            alphaView.text = "自动"
+            betaView.text = "自动"
+            gammaView.text = "自动"
+            return
+        }
+        alphaView.text = "${alphaBar.progress}%"
+        betaView.text = "${betaBar.progress}%"
+        gammaView.text = "${gammaBar.progress}%"
     }
 }

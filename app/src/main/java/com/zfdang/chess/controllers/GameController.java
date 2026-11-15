@@ -15,8 +15,12 @@ import com.zfdang.chess.gamelogic.Position;
 import com.zfdang.chess.gamelogic.PvInfo;
 import com.zfdang.chess.gamelogic.Rule;
 import com.zfdang.chess.openbook.BHOpenBook;
+import com.zfdang.chess.openbook.BookCandidate;
 import com.zfdang.chess.openbook.BookData;
 import com.zfdang.chess.openbook.OpenBook;
+import com.zfdang.chess.strategy.PlayLogger;
+import com.zfdang.chess.strategy.RiskDecisionEngine;
+import com.zfdang.chess.strategy.RiskProfile;
 
 import org.jetbrains.annotations.NotNull;
 import org.petero.droidfish.player.ComputerPlayer;
@@ -70,6 +74,45 @@ public class GameController implements EngineListener, SearchListener {
 
     BHOpenBook bhBook = null;
 
+    /** 激进策略决策器(仅 risk>0 时存在);null = 走原版 Pikafish bestmove 路径。 */
+    private RiskDecisionEngine decisionEngine = null;
+    /** 策略决策日志(真实构造时初始化;测试构造保持 null)。 */
+    private PlayLogger playLogger = null;
+
+    /** 策略层宿主桥:所有方法都可能被引擎监控线程调用。 */
+    private final RiskDecisionEngine.Host decisionHost = new RiskDecisionEngine.Host() {
+        @Override public int startBaselineSearch() {
+            return queueDecisionSearch(null, 0);
+        }
+        @Override public int startRestrictedSearch(String ucci, int movetimeMs) {
+            return queueDecisionSearch(ucci, movetimeMs);
+        }
+        @Override public void sendRawCommand(String uciCommand) {
+            if (player != null) player.sendToEngine(uciCommand);
+        }
+        @Override public void stopEngineSearch() {
+            if (player != null) player.stopSearch();
+        }
+        @Override public void commitMove(String ucci, String reason) {
+            gui.runOnUIThread(() -> {
+                RiskDecisionEngine finished = decisionEngine;
+                decisionEngine = null;
+                if (state == ControllerState.WAITING_FOR_DECISION) {
+                    state = ControllerState.WAITING_FOR_ENGINE;
+                }
+                GcLog.d("decision commit: " + ucci + " (" + reason + ")");
+                computerMovePiece(ucci);
+                if (finished != null) finished.terminate();
+            });
+        }
+        @Override public void status(String message) {
+            gui.onGameEvent(GameStatus.UPDATEUI, message);
+        }
+        @Override public PlayLogger logger() {
+            return playLogger;
+        }
+    };
+
     private static final String GAME_OVER_HINT = "对局已结束，可悔棋或开新局";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -80,8 +123,17 @@ public class GameController implements EngineListener, SearchListener {
         synchronized (pvLock) {
             closed = true;
         }
+        abortDecisionSilently();
         mainHandler.removeCallbacksAndMessages(null);
         if (player != null) player.close();
+    }
+
+    /** 终止进行中的策略决策,不提交任何着法(新局/悔棋/关闭时)。 */
+    private void abortDecisionSilently() {
+        if (decisionEngine != null) {
+            decisionEngine.terminate();
+            decisionEngine = null;
+        }
     }
 
     public volatile ControllerState state;
@@ -105,6 +157,7 @@ public class GameController implements EngineListener, SearchListener {
         WAITING_FOR_ENGINE_MULTIPV, // 黑方变着，等待多PV结果
         WAITING_FOR_EVAL, // 等待eval的结果
         MANUAL_MODE, // 打谱模式
+        WAITING_FOR_DECISION, // 激进策略决策中(基线+候选受限搜索)
     }
 
     public boolean isNonGameMode() {
@@ -126,17 +179,29 @@ public class GameController implements EngineListener, SearchListener {
         bhBook = new BHOpenBook(ChessApp.getContext());
 
         settings = new Settings(ChessApp.getContext());
+        playLogger = new PlayLogger(ChessApp.getContext());
 
         // Initialize computer player
         if (player == null) {
             player = new ComputerPlayer(this, this, this);
         }
+        // 策略决策层通过 SearchOutcome 消费每一次搜索的完整结果。
+        player.setOutcomeListener(this::onEngineOutcome);
         player.queueStartEngine(searchId++, engineName);
         startNewGame();
     }
 
+    /** 引擎监控线程回调:一次搜索完成(bestmove)。 */
+    private void onEngineOutcome(org.petero.droidfish.player.SearchOutcome outcome) {
+        RiskDecisionEngine engine = decisionEngine;
+        if (engine != null) {
+            engine.onOutcome(outcome);
+        }
+    }
+
     public synchronized void startNewGame() {
         Log.d("GameController", "New game");
+        abortDecisionSilently();
         setSatate(settings.getRed_go_first());
         game = new Game(settings.getRed_go_first());
         player.stopSearch();
@@ -146,6 +211,7 @@ public class GameController implements EngineListener, SearchListener {
 
     public synchronized void startFENGame(String fen) {
         Log.d("GameController", "New FEN game" + fen);
+        abortDecisionSilently();
         Game tempGame = new Game(true);
         boolean result = tempGame.currentBoard.restoreFromFEN(fen);
         if (!result) {
@@ -174,6 +240,7 @@ public class GameController implements EngineListener, SearchListener {
     public synchronized void applyPlayerConfig(boolean redHuman, boolean blackHuman, boolean redFirst) {
         GcLog.d("applyPlayerConfig: redHuman=" + redHuman + " blackHuman=" + blackHuman
                 + " redFirst=" + redFirst + " wasRedTurn=" + isRedTurn());
+        abortDecisionSilently();
         redIsHuman = redHuman;
         blackIsHuman = blackHuman;
         isComputerPlaying = !(redHuman && blackHuman);
@@ -278,6 +345,13 @@ public class GameController implements EngineListener, SearchListener {
             return;
         }
 
+        // 激进策略路径(risk>0):统一决策流程,开局库候选也必须经过受限搜索复验。
+        // risk<=0 时保持原版行为等价(risk=0 == 原版 Pikafish bestmove)。
+        if (settings != null && strategyShouldRun()) {
+            startStrategyForward();
+            return;
+        }
+
         if(settings.getOpenbook()) {
             // 开局库查询挪到后台线程（120MB 大库无索引首次查询慢，不能阻塞主线程）
             // 查询命中：电脑直接走子；未命中/异常：回到主线程正常搜索
@@ -332,6 +406,81 @@ public class GameController implements EngineListener, SearchListener {
 
         // trigger searchrequest, engine will call notifySearchResult for bestmove
         queueSearch(settings.getRandom_move() ? 3 : 1);
+    }
+
+    // ------------------------------------------------------------------
+    // 激进策略决策路径(design: xiangqi-risk-design-final-v2.md)
+    // ------------------------------------------------------------------
+
+    /** risk>0 且当前没有进行中的决策时,启用策略层。 */
+    private boolean strategyShouldRun() {
+        if (decisionEngine != null || settings == null) return false;
+        return RiskProfile.fromSettings(settings).hasAttackCandidates();
+    }
+
+    /** 策略入口:先查开局库(后台线程),再启动统一决策流程。 */
+    private void startStrategyForward() {
+        final RiskProfile profile = RiskProfile.fromSettings(settings);
+        final boolean redGo = isRedTurn();
+        if (settings.getOpenbook() && bhBook != null) {
+            new Thread(() -> {
+                List<BookCandidate> cands = Collections.emptyList();
+                try {
+                    GcLog.d("strategy openbook query start");
+                    long vkey = game.currentBoard.getZobrist(redGo);
+                    cands = bhBook.queryDetailed(vkey, redGo);
+                } catch (Throwable t) {
+                    GcLog.d("strategy openbook query failed: " + t);
+                }
+                final List<BookCandidate> hit = cands;
+                mainHandler.post(() -> {
+                    if (closed || decisionEngine != null) return;
+                    if (state != ControllerState.WAITING_FOR_ENGINE) return;
+                    beginDecision(profile, hit);
+                });
+            }, "OpenbookQuery").start();
+        } else {
+            beginDecision(profile, Collections.emptyList());
+        }
+    }
+
+    /** 创建决策状态机并启动基线搜索。 */
+    private void beginDecision(RiskProfile profile, List<BookCandidate> bookCands) {
+        if (closed || decisionEngine != null || game == null || game.currentBoard == null) return;
+        if (state != ControllerState.WAITING_FOR_ENGINE) return;
+        state = ControllerState.WAITING_FOR_DECISION;
+        decisionEngine = new RiskDecisionEngine(decisionHost, profile,
+                new Board(game.currentBoard), bookCands);
+        decisionEngine.begin();
+    }
+
+    /**
+     * 决策层专用搜索队列。基线(null)使用用户原有 go 命令(不降低预算);
+     * 受限搜索使用 go movetime X,并由 ComputerPlayer 自动追加 searchmoves(行尾)。
+     * 返回本次搜索的 searchId,供 SearchOutcome 匹配。
+     */
+    private int queueDecisionSearch(String restrictedUcci, int movetimeMs) {
+        Board startBoard = game.history.isEmpty() ? game.currentBoard : game.history.get(0).move.board;
+        SearchRequest sr = SearchRequest.searchRequest(
+                searchId++,
+                startBoard,
+                game.getMoveList(),
+                new Board(game.currentBoard),
+                null,
+                false,
+                engineName,
+                1);
+        if (restrictedUcci != null) {
+            Move m = new Move(game.currentBoard);
+            m.fromUCCIString(restrictedUcci);
+            ArrayList<Move> sm = new ArrayList<>();
+            sm.add(m);
+            sr.setSearchMoves(sm);
+            sr.setGoOverride("go movetime " + movetimeMs);
+        }
+        GcLog.d("queueDecisionSearch: id=" + sr.getSearchId() + " restricted=" + restrictedUcci);
+        player.queueSearchRequest(sr);
+        return sr.getSearchId();
     }
 
     public synchronized void computerAskForMultiPV() {
@@ -524,6 +673,12 @@ public class GameController implements EngineListener, SearchListener {
     }
 
     public void stopSearchNow() {
+        // 策略决策中:取消整条决策链,回退到已锁定的基线着法。
+        if (state == ControllerState.WAITING_FOR_DECISION && decisionEngine != null) {
+            decisionEngine.cancel();
+            gui.onGameEvent(GameStatus.SELECT, "闪电出着中...");
+            return;
+        }
         // send "stop" to engine for "bestmove"
         if (state == ControllerState.WAITING_FOR_ENGINE_BESTMV || state == ControllerState.WAITING_FOR_ENGINE_MULTIPV) {
             player.stopSearch();
@@ -693,6 +848,13 @@ public class GameController implements EngineListener, SearchListener {
     public void reportEngineError(String errMsg) {
         Log.d("GameController", "Engine error: " + errMsg);
         if (closed) return;
+        // 策略决策中出错:已锁定基线则提交回退;尚无基线则交还旧的重启链路。
+        if (state == ControllerState.WAITING_FOR_DECISION && decisionEngine != null) {
+            boolean handled = decisionEngine.onEngineError();
+            if (handled) return;
+            decisionEngine = null;
+            if (game != null && game.currentBoard != null) setSatate(game.currentBoard.bRedGo);
+        }
         mainHandler.post(() -> {
             if (closed) return;
             if (state == ControllerState.WAITING_FOR_EVAL) state = preEvalState;
@@ -752,6 +914,12 @@ public class GameController implements EngineListener, SearchListener {
     @Override
     public void notifySearchResult(int searchId, String bestMove, String nextPonderMove) {
         if (closed) return;
+        // 策略决策期间,bestmove 由 SearchOutcome 监听器驱动决策器提交,
+        // 这里必须忽略,防止重复走子/旧局面回调。
+        if (state == ControllerState.WAITING_FOR_DECISION) {
+            GcLog.d("notifySearchResult ignored during decision: id=" + searchId);
+            return;
+        }
         // engine返回bestmove, 有3种情况，一种是电脑搜索走棋的结果，一种是红方寻求帮助的结果，一种是电脑被强制要求变着的结果
 
         Log.d("GameController", "Search result: bestMove=" + bestMove + ", nextPonderMove=" + nextPonderMove);

@@ -28,4 +28,22 @@ public class BHDatabase extends SQLiteAssetHelper {
         // Upgrades via overwrite
         setForcedUpgrade();
     }
+
+    /**
+     * SQLiteAssetHelper loads the database from assets/databases/<name>. When the
+     * asset is absent (current repository state), getReadableDatabase() throws and
+     * the old code silently retried forever. Callers must check this first and run
+     * in an explicit "no book" mode instead of failing silently.
+     */
+    public static boolean assetExists(Context context) {
+        if (context == null) return false;
+        try {
+            for (String name : context.getAssets().list("databases")) {
+                if (DATABASE_NAME.equals(name)) return true;
+            }
+        } catch (Throwable ignored) {
+            // asset listing unavailable -> treat as missing
+        }
+        return false;
+    }
 }

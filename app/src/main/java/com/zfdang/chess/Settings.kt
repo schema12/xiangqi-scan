@@ -39,6 +39,24 @@ class Settings(private val context: Context) {
     private val random_move_key: String = "random_move"
     var random_move = false
 
+    // ---- aggressive-strategy layer (see docs/aggressive-ai.md) ----
+    // risk_level 0 keeps the app exactly on the original Pikafish bestmove path.
+    private val risk_level_key: String = "risk_level"
+    var riskLevel = 0
+    private val strength_guard_key: String = "strength_guard"
+    var strengthGuard = true
+    private val show_wdl_key: String = "show_wdl"
+    var showWdl = true
+    private val thinking_mode_key: String = "thinking_mode"
+    var thinkingMode = "A"
+    // advanced per-dimension overrides: -1 = follow the risk slider, 0..100 = explicit
+    private val alpha_override_key: String = "alpha_override"
+    var alphaOverride = -1
+    private val beta_override_key: String = "beta_override"
+    var betaOverride = -1
+    private val gamma_override_key: String = "gamma_override"
+    var gammaOverride = -1
+
     init {
         loadSettings()
 
@@ -54,6 +72,13 @@ class Settings(private val context: Context) {
         red_go_first = getBoolean(red_go_first_key, true)
         hash_size = getInt(hash_size_key, 256)
         random_move = getBoolean(random_move_key, false)
+        riskLevel = getInt(risk_level_key, 0)
+        strengthGuard = getBoolean(strength_guard_key, true)
+        showWdl = getBoolean(show_wdl_key, true)
+        thinkingMode = getString(thinking_mode_key, "A")
+        alphaOverride = getInt(alpha_override_key, -1)
+        betaOverride = getInt(beta_override_key, -1)
+        gammaOverride = getInt(gamma_override_key, -1)
     }
 
     private fun loadSettings() {
@@ -80,6 +105,13 @@ class Settings(private val context: Context) {
         setBoolean(red_go_first_key, red_go_first)
         setInt(hash_size_key, hash_size)
         setBoolean(random_move_key, random_move)
+        setInt(risk_level_key, riskLevel)
+        setBoolean(strength_guard_key, strengthGuard)
+        setBoolean(show_wdl_key, showWdl)
+        setString(thinking_mode_key, thinkingMode)
+        setInt(alpha_override_key, alphaOverride)
+        setInt(beta_override_key, betaOverride)
+        setInt(gamma_override_key, gammaOverride)
 
         // save to file
         try {

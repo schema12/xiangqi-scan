@@ -74,12 +74,173 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
-            android:text="让电脑走法更有变化"
+            android:text="开局库随机选着（旧功能，与激进策略无关）"
             android:textSize="14sp"
             android:textColor="@color/ui_ink"
             app:useMaterialThemeColors="false"
                 app:thumbTint="@color/ui_switch_thumb"
                 app:trackTint="@color/ui_switch_track" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="激进策略（实验）"
+            android:textSize="13sp"
+            android:textColor="@color/ui_ink"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="风险等级"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_risk"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 · 稳健"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_risk"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/boolean_strength_guard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="棋力保护 · 限制评估损失（推荐开启）"
+            android:textSize="14sp"
+            android:textColor="@color/ui_ink"
+            app:useMaterialThemeColors="false"
+                app:thumbTint="@color/ui_switch_thumb"
+                app:trackTint="@color/ui_switch_track" />
+        <TextView
+            android:id="@+id/textview_advanced_caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="高级维度（关闭时自动跟随风险等级）"
+            android:textSize="12sp"
+            android:textColor="@color/ui_muted"
+            android:paddingStart="4dp"
+            android:layout_marginTop="4dp" />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/boolean_advanced_override"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="独立调节三个维度"
+            android:textSize="14sp"
+            android:textColor="@color/ui_ink"
+            app:useMaterialThemeColors="false"
+                app:thumbTint="@color/ui_switch_thumb"
+                app:trackTint="@color/ui_switch_track" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="进攻冒险 α"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_alpha"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_alpha"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="开局偏门 β"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_beta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_beta"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="着法多样性 γ"
+                android:textSize="14sp"
+                android:textColor="@color/ui_ink" />
+            <TextView
+                android:id="@+id/textview_gamma"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="自动"
+                android:textSize="14sp"
+                android:textColor="@color/ui_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <SeekBar
+            android:id="@+id/seekbar_gamma"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:min="0"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="@color/ui_red"
+            android:thumbTint="@color/ui_red" />
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
