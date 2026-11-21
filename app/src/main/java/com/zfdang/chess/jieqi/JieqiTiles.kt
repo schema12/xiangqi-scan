@@ -5,7 +5,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 
-/** 暗子瓦片位图（红/黑底 + 「揭」字），BoardEditView 与 JieqiBoardView 共用。 */
+/** 暗子瓦片位图（红/黑底、无字背面），BoardEditView 与 JieqiBoardView 共用。
+ *  暗子背面统一不显示文字。 */
 object JieqiTiles {
     private val cache = HashMap<Int, Bitmap>()
 
@@ -23,13 +24,12 @@ object JieqiTiles {
         }
         c.drawCircle(size / 2f, size / 2f, size / 2f - 2f, body)
         c.drawCircle(size / 2f, size / 2f, size / 2f - size * 0.045f, ring)
-        val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (red) 0xFFA33D32.toInt() else 0xFFE8DCC0.toInt()
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
-            textSize = size * 0.5f
+        // 内圈细边，作为无字背面的装饰
+        val inner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = size * 0.018f
+            color = if (red) 0x66A33D32 else 0x66C9B896
         }
-        c.drawText("揭", size / 2f, size / 2f + tp.textSize / 3f, tp)
+        c.drawCircle(size / 2f, size / 2f, size * 0.30f, inner)
         cache[key] = bmp
         return bmp
     }

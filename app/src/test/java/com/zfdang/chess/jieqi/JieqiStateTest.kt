@@ -164,6 +164,28 @@ class JieqiStateTest {
         assertNull(JieqiGameState.parseFen(fen))
     }
 
+
+    @Test
+    fun `captured pieces are tracked with correct face`() {
+        // 红明兵 e5 吃 黑暗子(未知) -> red captured 显示背面 'x'
+        val fen = "xxxxkxxxx/9/9/4x4/4P4/9/4K4/9/9/9 w R2A2C2P4N2B2r2a2c2p5n2b2 0 1"
+        val (grid, red, pools) = JieqiGameState.parseFen(fen)!!
+        val s = JieqiGameState.fromImported(grid, red, pools)
+        assertNull(s.applyMove(4, 4, 3, 4, '.', '.'))
+        // 红方吃掉一枚未知身份黑暗子 -> 背面
+        assertTrue(s.captured[0].size == 1)
+        assertEquals('x', s.captured[0][0])
+        // 序列化往返保留
+        val restored = JieqiGameState.newGame(java.util.Random(5)).deserialize(s.serialize())
+        assertEquals(s.captured[0], restored.captured[0])
+        assertEquals(s.captured[1], restored.captured[1])
+        // 快照恢复保留
+        val snap = s.snapshot()
+        s.captured[0].clear()
+        s.restoreFrom(snap)
+        assertEquals(1, s.captured[0].size)
+    }
+
     @Test
     fun `json round trip preserves state`() {
         val s = JieqiGameState.newGame(Random(9))

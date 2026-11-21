@@ -41,15 +41,28 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- 上方吃子区（黑方吃掉的子） -->
+            <com.zfdang.chess.jieqi.JieqiCapturedView
+                android:id="@+id/jqCapturedTop"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp" android:layout_marginTop="6dp"/>
+
+            <!-- 棋盘居中 -->
             <com.zfdang.chess.jieqi.JieqiBoardView
                 android:id="@+id/jqBoard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="8dp"/>
 
+            <!-- 下方吃子区（红方吃掉的子） -->
+            <com.zfdang.chess.jieqi.JieqiCapturedView
+                android:id="@+id/jqCapturedBottom"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp" android:layout_marginBottom="4dp"/>
+
             <TextView android:id="@+id/jqStatus"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp" android:layout_marginTop="8dp"
+                android:layout_marginHorizontal="16dp" android:layout_marginTop="6dp"
                 android:background="@drawable/bg_card_white"
                 android:paddingHorizontal="16dp" android:paddingVertical="12dp"
                 android:textColor="@color/ui_red" android:textSize="15sp"
@@ -93,6 +106,7 @@
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
+                android:layout_marginBottom="24dp"
                 android:background="@drawable/bg_card_white" android:paddingVertical="10dp">
 
                 <LinearLayout android:id="@+id/jqScanbt"
@@ -109,22 +123,7 @@
                     style="@style/JqTool"><ImageView style="@style/JqToolIcon"
                         app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
                     <TextView style="@style/JqToolLabel" android:text="身份池"/></LinearLayout>
-
-                <LinearLayout android:id="@+id/jqHistorybt"
-                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
-                        app:srcCompat="@drawable/ic_manual_folder" xmlns:app="http://schemas.android.com/apk/res-auto"/>
-                    <TextView style="@style/JqToolLabel" android:text="对局记录"/></LinearLayout>
             </LinearLayout>
-
-            <TextView android:id="@+id/jqHistory"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
-                android:layout_marginBottom="24dp"
-                android:background="@drawable/bg_card_white"
-                android:paddingHorizontal="16dp" android:paddingVertical="12dp"
-                android:textColor="@color/ui_ink" android:textSize="13sp"
-                android:fontFamily="monospace"
-                android:text="对局尚未开始"/>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

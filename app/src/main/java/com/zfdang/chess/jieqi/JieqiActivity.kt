@@ -39,8 +39,9 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     private lateinit var board: JieqiBoardView
     private lateinit var statusText: TextView
-    private lateinit var historyText: TextView
     private lateinit var opponentLabel: TextView
+    private lateinit var capturedTop: com.zfdang.chess.jieqi.JieqiCapturedView
+    private lateinit var capturedBottom: com.zfdang.chess.jieqi.JieqiCapturedView
 
     private lateinit var state: JieqiGameState
     private var redIsHuman = true
@@ -57,6 +58,10 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
                                    var reveal: Char = '.', var victim: Char = '.')
     private var pendingMove: PendingMove? = null
     private var hintPending = false
+
+    /** 终局提示：绝杀/将死。由引擎 mate 分数或 App 无合法走法判定。 */
+    private var gameOver = false
+    private var gameOverReason = ""
 
     /** 扫描导入：CaptureActivity 拍照/相册 → ScanActivity（揭棋模式） */
     private val captureLauncher = registerForActivityResult(
@@ -76,13 +81,15 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         setContentView(R.layout.activity_jieqi)
         board = findViewById(R.id.jqBoard)
         statusText = findViewById(R.id.jqStatus)
-        historyText = findViewById(R.id.jqHistory)
         opponentLabel = findViewById(R.id.jqOpponent)
+        capturedTop = findViewById(R.id.jqCapturedTop)
+        capturedBottom = findViewById(R.id.jqCapturedBottom)
 
         board.onCellTap = { r, c -> onCellTap(r, c) }
         findViewById<View>(R.id.jqNewbt).setOnClickListener { showNewGameDialog() }
         findViewById<View>(R.id.jqFlipbt).setOnClickListener {
             board.viewFlipped = !board.viewFlipped
+            updateCaptured()
         }
         findViewById<View>(R.id.jqUndobt).setOnClickListener { undo() }
         findViewById<View>(R.id.jqHintbt).setOnClickListener { requestHint() }
@@ -96,10 +103,6 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             Toast.makeText(this, "揭棋局面已复制", Toast.LENGTH_SHORT).show()
         }
         findViewById<View>(R.id.jqPoolbt).setOnClickListener { showPoolEditor() }
-        findViewById<View>(R.id.jqHistorybt).setOnClickListener {
-            historyText.visibility =
-                if (historyText.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }
 
         val importFen = intent.getStringExtra(EXTRA_IMPORT_FEN)
         val restored = loadSaved()
@@ -146,6 +149,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         blackIsHuman = blackHuman
         undoStack.clear()
         thinking = false
+        gameOver = false
+        gameOverReason = ""
         finishBoardSetup()
         client?.send("ucinewgame")
         syncEngine()
@@ -164,7 +169,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             else -> "红黑双人 · 人工执棋"
         }
         updateStatus()
-        updateHistory()
+        updateCaptured()
         if (!resumed) persist()
     }
 
@@ -173,15 +178,23 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     private fun updateStatus() {
         statusText.text = when {
+            gameOver -> "对局结束 · $gameOverReason"
             thinking -> "电脑思考中，请稍候..."
             else -> if (state.redToMove) "轮到红方走棋" else "轮到黑方走棋"
         }
     }
 
-    private fun updateHistory() {
-        historyText.text = if (state.moveRecords.isEmpty()) "对局尚未开始"
-        else state.moveRecords.mapIndexed { i, s -> "${i + 1}. $s" }
-            .joinToString("\n")
+    /** 吃子区：上方是处于棋盘上方的那一方吃掉的子。
+     *  棋盘未翻转时红方在下、黑方在上；翻转后相反。 */
+    private fun updateCaptured() {
+        // captured[0] = 红方吃掉的子；captured[1] = 黑方吃掉的子
+        if (!board.viewFlipped) {
+            capturedTop.pieces = state.captured[1]   // 黑方在上
+            capturedBottom.pieces = state.captured[0] // 红方在下
+        } else {
+            capturedTop.pieces = state.captured[0]
+            capturedBottom.pieces = state.captured[1]
+        }
     }
 
     private fun persist() {
@@ -316,10 +329,24 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         board.lastMove = intArrayOf(fr, fc, tr, tc)
         board.hint = -1
         updateStatus()
-        updateHistory()
+        updateCaptured()
         persist()
         syncEngine()
+        checkGameOver()
         maybeEngineForward()
+    }
+
+    /** 终局判定：无合法走法 = 将死/困毙。显示绝杀提示，停止 AI。 */
+    private fun checkGameOver() {
+        if (gameOver) return
+        if (stateIsOver()) {
+            gameOver = true
+            thinking = false
+            val winner = if (state.redToMove) "黑方" else "红方"
+            gameOverReason = "${winner}胜（绝杀）"
+            statusText.text = "对局结束 · $gameOverReason"
+            Toast.makeText(this, "绝杀！$gameOverReason", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ------------------------------------------------------------------
@@ -332,6 +359,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     }
 
     private fun maybeEngineForward() {
+        if (gameOver) return
         val over = stateIsOver()
         GcLog.d("JQ maybeForward: humanTurn=" + humanTurn() + " thinking=" + thinking +
             " ready=" + engineReady + " over=" + over + " redToMove=" + state.redToMove)
@@ -359,7 +387,15 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         maybeEngineForward()
     }
 
-    override fun onEngineLine(line: String) { /* info 展示留待后续 */ }
+    override fun onEngineLine(line: String) {
+        // 引擎报告 mate N：说明当前搜索方（AI）能杀，或已被杀。记录供提示用。
+        val m = Regex("score mate (-?\\d+)").find(line)
+        if (m != null && !hintPending) {
+            val mateIn = m.groupValues[1].toIntOrNull() ?: 0
+            // mate 分为负且绝对值小 = 当前行棋方（AI）被将死，走完最后一步后 checkGameOver 会兜底
+            GcLog.d("JQ mate info: $mateIn")
+        }
+    }
 
     override fun onBestMove(move: String) {
         GcLog.d("JQ onBestMove: move=$move hintPending=$hintPending thinking=$thinking redToMove=" + state.redToMove)
@@ -369,7 +405,11 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         if (move == "0000" || move.length < 4) {
             if (wasHint) { toast("无可显示的提示"); return }
             updateStatus()
-            if (stateIsOver()) toast("对局结束")
+            // AI 无合法着法：当前行棋方（AI 方）已被将死/困毙
+            gameOver = true
+            gameOverReason = "${if (state.redToMove) "红方" else "黑方"}胜（绝杀）"
+            statusText.text = "对局结束 · $gameOverReason"
+            Toast.makeText(this, "绝杀！$gameOverReason", Toast.LENGTH_LONG).show()
             return
         }
         val fr = "abcdefghi".indexOf(move[0])
@@ -478,8 +518,11 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         }
         thinking = false
         pendingMove = null
+        gameOver = false
+        gameOverReason = ""
         finishBoardSetup(resumed = true)
         board.grid = state.grid
+        updateCaptured()
         syncEngine()
         maybeEngineForward()
     }
@@ -505,8 +548,11 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             undoStack.addLast(state.snapshot())
             state.rebase(redFirst)
             thinking = false
+            gameOver = false
+            gameOverReason = ""
             finishBoardSetup(resumed = true)
             board.grid = state.grid
+            updateCaptured()
             syncEngine()
             maybeEngineForward()
         }.show()

@@ -25,7 +25,10 @@ class JieqiGameState private constructor(
     /** 各方「身份不明的被吃暗子」计数（校对面板展示；引擎池不扣减） */
     val darkCapturedUnknown: IntArray,
     /** 对局记录（人类可读，一条一手） */
-    val moveRecords: MutableList<String>
+    val moveRecords: MutableList<String>,
+    /** 双方吃掉的棋子：captured[0]=红方吃到，captured[1]=黑方吃到。
+     *  元素为显示字符：明子=自身字母；暗子已知=揭晓字母；暗子未知='X'/'x'（背面）。 */
+    val captured: Array<MutableList<Char>> = arrayOf(mutableListOf(), mutableListOf())
 ) {
     companion object {
         const val START_FEN_BOARD = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX"
@@ -257,7 +260,8 @@ class JieqiGameState private constructor(
         pools.map { it.copyOf() }.toTypedArray(),
         assignment?.map { it.copyOf() }?.toTypedArray(),
         startFen, tokens.toMutableList(), startRedToMove,
-        darkCapturedUnknown.copyOf(), moveRecords.toMutableList()
+        darkCapturedUnknown.copyOf(), moveRecords.toMutableList(),
+        arrayOf(captured[0].toMutableList(), captured[1].toMutableList())
     )
 
     fun restoreFrom(s: JieqiGameState) {
@@ -270,6 +274,8 @@ class JieqiGameState private constructor(
         darkCapturedUnknown[0] = s.darkCapturedUnknown[0]
         darkCapturedUnknown[1] = s.darkCapturedUnknown[1]
         moveRecords.clear(); moveRecords.addAll(s.moveRecords)
+        captured[0].clear(); captured[0].addAll(s.captured[0])
+        captured[1].clear(); captured[1].addAll(s.captured[1])
     }
 
     // ------------------------------------------------------------------
@@ -335,6 +341,15 @@ class JieqiGameState private constructor(
             if (victimReveal != '.') pools[1 - us][slotOf(victimReveal)]--
             else darkCapturedUnknown[1 - us]++   // 己方暗子被吃且身份未知（仅扫描模式会出现）
         }
+        // 被吃棋子入「吃子区」：明子=正面本身；暗子已知=正面揭晓字母；暗子未知=背面
+        if (victim != '.') {
+            val display = when {
+                !JieqiRules.isDark(victim) -> victim
+                victimReveal != '.' -> victimReveal   // 已知身份，正面
+                else -> victim                        // X/x 未知，背面
+            }
+            captured[us].add(display)
+        }
 
         // 3) 棋盘
         grid[tr][tc] = if (movedDark) {
@@ -364,7 +379,7 @@ class JieqiGameState private constructor(
 
     fun serialize(): String {
         val parts = ArrayList<String>(12)
-        parts.add("1")
+        parts.add("2")
         parts.add(grid.joinToString("/") { String(it) })
         parts.add(redToMove.toString())
         parts.add(pools.joinToString(",") { p -> p.joinToString(",") })
@@ -374,6 +389,8 @@ class JieqiGameState private constructor(
         parts.add("${darkCapturedUnknown[0]},${darkCapturedUnknown[1]}")
         parts.add(tokens.joinToString(" "))
         parts.add(moveRecords.joinToString("§"))
+        parts.add(String(captured[0].toCharArray()))
+        parts.add(String(captured[1].toCharArray()))
         return parts.joinToString("|")
     }
 
@@ -390,9 +407,11 @@ class JieqiGameState private constructor(
         val dcu = p[7].split(",").map { it.toInt() }
         val tokens = if (p[8].isEmpty()) mutableListOf() else p[8].split(" ").toMutableList()
         val records = if (p[9].isEmpty()) mutableListOf() else p[9].split("§").toMutableList()
+        val capRed = if (p.size > 10 && p[10].isNotEmpty()) p[10].toCharArray().toMutableList() else mutableListOf()
+        val capBlack = if (p.size > 11 && p[11].isNotEmpty()) p[11].toCharArray().toMutableList() else mutableListOf()
         return JieqiGameState(
             grid, redToMove, pools, assignment, startFen, tokens, startRedToMove,
-            intArrayOf(dcu[0], dcu[1]), records
+            intArrayOf(dcu[0], dcu[1]), records, arrayOf(capRed, capBlack)
         )
     }
 }
