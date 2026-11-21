@@ -282,6 +282,32 @@ class JieqiStateTest {
     }
 
     @Test
+    fun `new game capturing dark piece records true identity from assignment`() {
+        // 新局：红兵吃掉黑暗子，App 持有秘密分配，应能看到真身
+        val s = JieqiGameState.newGame(java.util.Random(3))
+        s.captured[0].clear(); s.captured[1].clear()
+        // 找一个红兵暗子位(row6)与相邻黑暗子：直接构造 grid
+        for (r in 0 until 10) for (c in 0 until 9) { s.grid[r][c] = '.' }
+        s.grid[0][4] = 'k'; s.grid[9][4] = 'K'
+        s.grid[4][4] = 'P'      // 红兵 e5
+        s.grid[3][4] = 'x'      // 黑暗子 e6
+        val assign = s.assignment!!
+        for (r in 0 until 10) for (c in 0 until 9) assign[r][c] = '.'
+        assign[3][4] = 'n'  // 该黑暗子真身=黑马
+        // 重算池/FEN 起点
+        s.startFen = JieqiGameState.fenOf(s.grid, true, s.pools)
+        s.tokens.clear()
+
+        val err = s.applyMove(4, 4, 3, 4, '.', '.')
+        assertNull(err, err)
+        // 吃子方红(0)看到真身 'n'
+        assertEquals('n', s.capturedViewList(0, 0)[0])
+        // 对方黑(1)看到统一背面
+        assertEquals('X', s.capturedViewList(0, 1)[0])
+        assertTrue(s.captured[0][0].wasHidden)
+    }
+
+    @Test
     fun `captured view differs between new game and scan mode`() {
         // 场景：黑方(eater=1)吃了红方一个暗子
         val s = JieqiGameState.newGame(java.util.Random(1))

@@ -373,8 +373,10 @@ class JieqiGameState private constructor(
         if (victim != '.') {
             val truth = when {
                 !JieqiRules.isDark(victim) -> victim          // 明子，双方可见
-                victimReveal != '.' -> victimReveal           // 暗子，吃子方获知真实身份
-                else -> '?'                                   // 暗子身份完全未知
+                victimReveal != '.' -> victimReveal           // 扫描模式：用户录入的身份
+                assignment != null && assignment[tr][tc] != '.' ->
+                    assignment[tr][tc]                        // 新局：App 持有秘密分配，知道被吃暗子真身
+                else -> '?'                                   // 身份确实未知
             }
             captured[us].add(CapturedPiece(truth, JieqiRules.isDark(victim)))
         }
@@ -384,6 +386,8 @@ class JieqiGameState private constructor(
             (if (redToMove) effReveal else effReveal.lowercaseChar())
         } else mover
         if (movedDark && assignment != null) assignment[fr][fc] = '.'
+        // 被吃暗子的秘密身份已记入 captured truth，从此格清除
+        if (capturedDark && assignment != null) assignment[tr][tc] = '.'
         grid[fr][fc] = '.'
         redToMove = !redToMove
 
