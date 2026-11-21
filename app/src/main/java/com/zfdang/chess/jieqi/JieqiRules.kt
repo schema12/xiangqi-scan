@@ -184,6 +184,7 @@ object JieqiRules {
         }
 
         val role = roleAt(grid, fr, fc)
+        val dark = isDark(p)   // 暗子(未翻明)：按起始位兵种走，且受九宫/河界限制；明子:真实兵种，不受限
         when (role.uppercaseChar()) {
             'K' -> for ((dr, dc) in ORTHO) {
                 val r = fr + dr; val c = fc + dc
@@ -191,11 +192,18 @@ object JieqiRules {
             }
             'A' -> for ((dr, dc) in DIAG) {
                 val r = fr + dr; val c = fc + dc
-                if (onBoard(r, c) && inPalace(r, c) && canLand(r, c) && (inPalace(fr, fc))) out.add(r to c)
+                // 仅暗士受九宫限制；翻明的真士可出九宫、可从九宫外斜走
+                if (!onBoard(r, c) || !canLand(r, c)) continue
+                if (dark && !inPalaceOf(r, c, red)) continue
+                out.add(r to c)
             }
             'B' -> for ((dr, dc) in listOf(2 to 2, 2 to -2, -2 to 2, -2 to -2)) {
                 val r = fr + dr; val c = fc + dc
-                if (onBoard(r, c) && canLand(r, c) && grid[fr + dr / 2][fc + dc / 2] == '.') out.add(r to c)
+                if (!onBoard(r, c) || !canLand(r, c)) continue
+                if (grid[fr + dr / 2][fc + dc / 2] != '.') continue   // 塞象眼(明暗都有效)
+                // 仅暗象受河界限制；翻明的真象可过河
+                if (dark && !ownHalf(r, c, red)) continue
+                out.add(r to c)
             }
             'N' -> for ((dr, dc) in HORSE_D) {
                 val r = fr + dr; val c = fc + dc
@@ -229,17 +237,6 @@ object JieqiRules {
                     }
                 }
             }
-        }
-        // 暗象/暗仕的位置防御过滤（与引擎一致）
-        if (isDark(p)) {
-            val filtered = out.filter { (r, c) ->
-                when (role.uppercaseChar()) {
-                    'B' -> ownHalf(r, c, red)
-                    'A' -> inPalaceOf(r, c, red)
-                    else -> true
-                }
-            }
-            return filtered
         }
         return out
     }

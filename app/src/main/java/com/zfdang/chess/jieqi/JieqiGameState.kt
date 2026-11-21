@@ -3,6 +3,15 @@ package com.zfdang.chess.jieqi
 import java.util.Random
 
 /**
+ * 被吃棋子记录（对应参考 engine.js sanitize 的 captured 项）。
+ * @param ch 真实棋子字母（明子=自身；暗子=揭晓后的真实身份；未知='?'）
+ * @param wasHidden 被吃时是否为未翻暗子（hiddenAtCapture）
+ *
+ * 可见性：明子双方可见；暗子仅「吃子方」可见真实身份，对方看到统一背面。
+ */
+data class CapturedPiece(val ch: Char, val wasHidden: Boolean)
+
+/**
  * 揭棋对局状态（App 端唯一事实源）。
  *
  * - grid[row][col]：row0=rank9。'X' 红暗子、'x' 黑暗子、明子字母、'.' 空。
@@ -26,9 +35,9 @@ class JieqiGameState private constructor(
     val darkCapturedUnknown: IntArray,
     /** 对局记录（人类可读，一条一手） */
     val moveRecords: MutableList<String>,
-    /** 双方吃掉的棋子：captured[0]=红方吃到，captured[1]=黑方吃到。
-     *  元素为显示字符：明子=自身字母；暗子已知=揭晓字母；暗子未知='X'/'x'（背面）。 */
-    val captured: Array<MutableList<Char>> = arrayOf(mutableListOf(), mutableListOf())
+    /** 双方吃掉的棋子，captured[0]=红方吃到、captured[1]=黑方吃到。
+     *  存真实信息（含暗子真实身份与 wasHidden），显示时按观察者视角过滤。 */
+    val captured: Array<MutableList<CapturedPiece>> = arrayOf(mutableListOf(), mutableListOf())
 ) {
     companion object {
         const val START_FEN_BOARD = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX"
@@ -244,6 +253,25 @@ class JieqiGameState private constructor(
     }
 
     /**
+     * 按观察者视角生成「eaterSide 吃掉的子」显示列表。
+     * 参考 engine.js sanitize：明子双方可见；暗子仅吃子方(eaterSide)可见真实身份，
+     * 对方一律显示统一背面（'X'/'x'，颜色统一，不透露归属）。
+     *
+     * @param eaterSide 吃子方：0=红 1=黑（取 captured[eaterSide]）
+     * @param observerSide 观察者：0=红 1=黑；null=不隐藏(调试/新开局单机玩家全知)
+     */
+    fun capturedViewList(eaterSide: Int, observerSide: Int?): List<Char> {
+        return captured[eaterSide].map { cp ->
+            when {
+                !cp.wasHidden -> cp.ch                          // 明子，双方可见
+                observerSide == null || observerSide == eaterSide ->
+                    if (cp.ch == '?') 'X' else cp.ch            // 吃子方(或全知)：真实身份
+                else -> 'X'                                     // 对方：统一背面
+            }
+        }
+    }
+
+    /**
      * 以当前局面为新的引擎起点（棋局设置中途改先手方时调用）。
      * 引擎的行棋方由 startFen+token 奇偶决定，直接改 redToMove 会使两边错位一手；
      * rebase 把当前 grid/池/新轮走方固化为 startFen 并清空 token 历史。
@@ -341,14 +369,14 @@ class JieqiGameState private constructor(
             if (victimReveal != '.') pools[1 - us][slotOf(victimReveal)]--
             else darkCapturedUnknown[1 - us]++   // 己方暗子被吃且身份未知（仅扫描模式会出现）
         }
-        // 被吃棋子入「吃子区」：明子=正面本身；暗子已知=正面揭晓字母；暗子未知=背面
+        // 被吃棋子记录（真实信息；显示时按观察者视角过滤，见 capturedViewList）
         if (victim != '.') {
-            val display = when {
-                !JieqiRules.isDark(victim) -> victim
-                victimReveal != '.' -> victimReveal   // 已知身份，正面
-                else -> victim                        // X/x 未知，背面
+            val truth = when {
+                !JieqiRules.isDark(victim) -> victim          // 明子，双方可见
+                victimReveal != '.' -> victimReveal           // 暗子，吃子方获知真实身份
+                else -> '?'                                   // 暗子身份完全未知
             }
-            captured[us].add(display)
+            captured[us].add(CapturedPiece(truth, JieqiRules.isDark(victim)))
         }
 
         // 3) 棋盘
@@ -379,7 +407,7 @@ class JieqiGameState private constructor(
 
     fun serialize(): String {
         val parts = ArrayList<String>(12)
-        parts.add("2")
+        parts.add("3")
         parts.add(grid.joinToString("/") { String(it) })
         parts.add(redToMove.toString())
         parts.add(pools.joinToString(",") { p -> p.joinToString(",") })
@@ -389,14 +417,39 @@ class JieqiGameState private constructor(
         parts.add("${darkCapturedUnknown[0]},${darkCapturedUnknown[1]}")
         parts.add(tokens.joinToString(" "))
         parts.add(moveRecords.joinToString("§"))
-        parts.add(String(captured[0].toCharArray()))
-        parts.add(String(captured[1].toCharArray()))
+        // v3: 每个被吃子 = 字母 + (暗子加 '#' 标记 wasHidden)
+        fun enc(list: MutableList<CapturedPiece>) = buildString {
+            for (cp in list) {
+                append(cp.ch)
+                // '?' 本身即代表未知暗子，无需再带 '#'（否则解码会把 '#' 当成新棋子）
+                if (cp.wasHidden && cp.ch != '?') append('#')
+            }
+        }
+        parts.add(enc(captured[0]))
+        parts.add(enc(captured[1]))
         return parts.joinToString("|")
+    }
+
+    /** 解码被吃子列表：字母 + 可选 '#'（暗子标记）。兼容 v2 的纯字母（视为明子）。 */
+    private fun decCap(text: String, v2: Boolean): MutableList<CapturedPiece> {
+        val out = mutableListOf<CapturedPiece>()
+        var i = 0
+        while (i < text.length) {
+            val ch = text[i++]
+            if (ch == '?' || ch == 'X' || ch == 'x') {
+                out.add(CapturedPiece('?', true)); continue
+            }
+            val hidden = i < text.length && text[i] == '#'
+            if (hidden) i++
+            out.add(CapturedPiece(ch, if (v2) false else hidden))
+        }
+        return out
     }
 
     fun deserialize(text: String): JieqiGameState {
         val p = text.split("|")
         require(p.size >= 10) { "bad save format" }
+        val ver = p[0].toIntOrNull() ?: 1
         val grid = p[1].split("/").map { it.toCharArray() }.toTypedArray()
         val redToMove = p[2].toBoolean()
         val pools = p[3].split(",").map { it.toInt() }.chunked(6)
@@ -407,8 +460,8 @@ class JieqiGameState private constructor(
         val dcu = p[7].split(",").map { it.toInt() }
         val tokens = if (p[8].isEmpty()) mutableListOf() else p[8].split(" ").toMutableList()
         val records = if (p[9].isEmpty()) mutableListOf() else p[9].split("§").toMutableList()
-        val capRed = if (p.size > 10 && p[10].isNotEmpty()) p[10].toCharArray().toMutableList() else mutableListOf()
-        val capBlack = if (p.size > 11 && p[11].isNotEmpty()) p[11].toCharArray().toMutableList() else mutableListOf()
+        val capRed = if (p.size > 10 && p[10].isNotEmpty()) decCap(p[10], ver < 3) else mutableListOf()
+        val capBlack = if (p.size > 11 && p[11].isNotEmpty()) decCap(p[11], ver < 3) else mutableListOf()
         return JieqiGameState(
             grid, redToMove, pools, assignment, startFen, tokens, startRedToMove,
             intArrayOf(dcu[0], dcu[1]), records, arrayOf(capRed, capBlack)

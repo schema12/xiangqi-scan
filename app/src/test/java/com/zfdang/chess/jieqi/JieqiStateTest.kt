@@ -174,7 +174,8 @@ class JieqiStateTest {
         assertNull(s.applyMove(4, 4, 3, 4, '.', '.'))
         // 红方吃掉一枚未知身份黑暗子 -> 背面
         assertTrue(s.captured[0].size == 1)
-        assertEquals('x', s.captured[0][0])
+        assertEquals(CapturedPiece('?', true), s.captured[0][0])
+        assertEquals('X', s.capturedViewList(0, 1)[0])
         // 序列化往返保留
         val restored = JieqiGameState.newGame(java.util.Random(5)).deserialize(s.serialize())
         assertEquals(s.captured[0], restored.captured[0])
@@ -214,6 +215,70 @@ class JieqiStateTest {
         assertFalse(5 * 9 + 3 in blocked)
         assertFalse(5 * 9 + 5 in blocked)
         assertTrue(8 * 9 + 2 in blocked)
+    }
+
+    @Test
+    fun `revealed advisor may leave palace diagonally`() {
+        // 翻明的红仕放在九宫外(b2=row7,col1)，应能斜走；暗仕则不行
+        // grid: row7 col1 放 'A'(明仕)，其余空
+        val g = Array(10) { CharArray(9) { '.' } }
+        g[0][4] = 'k'; g[9][4] = 'K'
+        g[7][1] = 'A'   // 明仕在九宫外
+        val dests = JieqiRules.destinations(g, 7, 1).map { it.first * 9 + it.second }.toSet()
+        // 明仕斜走一格：可到 (6,0)(6,2)(8,0)(8,2) —— 不受九宫限制
+        assertTrue("明仕应能斜走出九宫到6,0", 6 * 9 + 0 in dests)
+        assertTrue("明仕应能斜走6,2", 6 * 9 + 2 in dests)
+        assertTrue("明仕应能斜走8,0", 8 * 9 + 0 in dests)
+        assertTrue("明仕应能斜走8,2", 8 * 9 + 2 in dests)
+    }
+
+    @Test
+    fun `dark advisor confined to palace but revealed one not`() {
+        // 暗仕只能在本方九宫内斜走；用起始位(row9,col3=仕位)的暗子
+        val g = Array(10) { CharArray(9) { '.' } }
+        g[0][4] = 'k'; g[9][4] = 'K'
+        g[9][3] = 'X'   // 红暗仕(起始位 col3)
+        val d = JieqiRules.destinations(g, 9, 3).map { it.first * 9 + it.second }.toSet()
+        // 暗仕在 row9,col3 只能斜走到 row8,col4 (九宫内)
+        assertTrue("暗仕应能走到九宫内8,4", 8 * 9 + 4 in d)
+        assertFalse("暗仕不能出九宫到8,2", 8 * 9 + 2 in d)
+    }
+
+    @Test
+    fun `revealed elephant may cross river but dark cannot`() {
+        val g = Array(10) { CharArray(9) { '.' } }
+        g[0][4] = 'k'; g[9][4] = 'K'
+        // 明相在 row5(红半场靠河)，田字过河到 row3
+        g[5][2] = 'B'
+        val d = JieqiRules.destinations(g, 5, 2).map { it.first * 9 + it.second }.toSet()
+        assertTrue("明相应能过河到3,0", 3 * 9 + 0 in d)
+        assertTrue("明相应能过河到3,4", 3 * 9 + 4 in d)
+        // 暗相在合法起始位(row9,col2)可走田字，但只在己方半场(row>=5)
+        val g2 = Array(10) { CharArray(9) { '.' } }
+        g2[0][4] = 'k'; g2[9][4] = 'K'; g2[9][2] = 'X'
+        val d2 = JieqiRules.destinations(g2, 9, 2)
+        assertTrue("暗相应能走田字到7,0", d2.any { it.first == 7 && it.second == 0 })
+        assertTrue("暗相应能走田字到7,4", d2.any { it.first == 7 && it.second == 4 })
+        assertTrue("暗相所有落点都在己方半场", d2.all { it.first >= 5 })
+    }
+
+    @Test
+    fun `captured hidden piece visibility by observer`() {
+        // 红方(0)吃了一个黑暗子，获知是黑卒 p；黑方观察者应看背面 X
+        val s = JieqiGameState.newGame(java.util.Random(1))
+        s.captured[0].add(CapturedPiece('p', true))
+        s.captured[1].add(CapturedPiece('P', true))
+        // 红吃子：红方(吃子方)看到真实 p
+        assertEquals('p', s.capturedViewList(0, 0)[0])
+        // 黑方看红方吃的暗子 -> 背面
+        assertEquals('X', s.capturedViewList(0, 1)[0])
+        // 明子双方可见：加一个明车
+        s.captured[0].add(CapturedPiece('r', false))
+        assertEquals('r', s.capturedViewList(0, 0)[1])
+        assertEquals('r', s.capturedViewList(0, 1)[1])
+        // 序列化往返(wasHidden 保留)
+        val restored = JieqiGameState.newGame(java.util.Random(9)).deserialize(s.serialize())
+        assertEquals(s.capturedViewList(0, 1), restored.capturedViewList(0, 1))
     }
 
     @Test

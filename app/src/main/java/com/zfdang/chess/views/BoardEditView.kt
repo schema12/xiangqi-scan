@@ -240,7 +240,7 @@ class BoardEditView @JvmOverloads constructor(
         top + (BOARD_Y_OFFSET + BOARD_PIECE_SIZE / 2f + r * BOARD_GRID_INTERVAL) * s
 
     private fun pieceFor(ch: Char): Bitmap? {
-        if (ch == 'X' || ch == 'x') return com.zfdang.chess.jieqi.JieqiTiles.darkTile(ch == 'X')
+        if (ch == 'X' || ch == 'x') return com.zfdang.chess.jieqi.JieqiTiles.darkTile()
         pieceCache[ch]?.let { return it }
         val id = PIECE_DRAWABLES[ch] ?: return null
         val bmp = BitmapFactory.decodeResource(resources, id)

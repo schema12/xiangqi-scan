@@ -187,13 +187,20 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     /** 吃子区：上方是处于棋盘上方的那一方吃掉的子。
      *  棋盘未翻转时红方在下、黑方在上；翻转后相反。 */
     private fun updateCaptured() {
+        // 观察者 = 软件玩家那一方；双方电脑时视为全知(null，用于演示)
+        val observer: Int? = when {
+            redIsHuman && !blackIsHuman -> 0
+            !redIsHuman && blackIsHuman -> 1
+            else -> null
+        }
+        fun viewList(eater: Int) = state.capturedViewList(eater, observer)
         // captured[0] = 红方吃掉的子；captured[1] = 黑方吃掉的子
         if (!board.viewFlipped) {
-            capturedTop.pieces = state.captured[1]   // 黑方在上
-            capturedBottom.pieces = state.captured[0] // 红方在下
+            capturedTop.pieces = viewList(1)    // 黑方在上：显示黑方吃掉的子
+            capturedBottom.pieces = viewList(0) // 红方在下：显示红方吃掉的子
         } else {
-            capturedTop.pieces = state.captured[0]
-            capturedBottom.pieces = state.captured[1]
+            capturedTop.pieces = viewList(0)
+            capturedBottom.pieces = viewList(1)
         }
     }
 

@@ -54,7 +54,7 @@ class JieqiCapturedView @JvmOverloads constructor(
     }
 
     private fun bitmapFor(ch: Char): Bitmap? {
-        if (ch == 'X' || ch == 'x') return JieqiTiles.darkTile(ch == 'X')
+        if (ch == 'X' || ch == 'x') return JieqiTiles.darkTile()
         pieceCache[ch]?.let { return it }
         val id = when (ch) {
             'K' -> com.zfdang.chess.R.drawable.r_shuai; 'A' -> com.zfdang.chess.R.drawable.r_shi
