@@ -81,6 +81,28 @@
             app:iconPadding="22dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_jieqi"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:layout_marginTop="12dp"
+            android:text="揭棋　 →\n暗子翻明 · AI 同步对弈"
+            android:textSize="18sp"
+            android:textStyle="normal"
+            android:gravity="start|center_vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:textColor="@color/white"
+            app:backgroundTint="@color/ui_purple"
+            app:cornerRadius="20dp"
+            app:strokeWidth="0dp"
+            app:strokeColor="@color/ui_line"
+            app:icon="@drawable/ui_board"
+            app:iconTint="@color/white"
+            app:iconSize="28dp"
+            app:iconPadding="22dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"/>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

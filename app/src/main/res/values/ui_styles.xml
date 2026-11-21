@@ -34,4 +34,35 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">28dp</item>
     </style>
+<style name="JqTool">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:layout_weight">1</item>
+    <item name="android:orientation">vertical</item>
+    <item name="android:gravity">center</item>
+    <item name="android:background">?attr/selectableItemBackground</item>
+</style>
+<style name="JqToolIcon">
+    <item name="android:layout_width">24dp</item>
+    <item name="android:layout_height">24dp</item>
+    <item name="android:tint">@color/ui_ink</item>
+</style>
+<style name="JqToolLabel">
+    <item name="android:layout_width">wrap_content</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:layout_marginTop">6dp</item>
+    <item name="android:textSize">12sp</item>
+    <item name="android:textColor">@color/ui_ink</item>
+</style>
+<style name="JqIdBtn">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">48dp</item>
+    <item name="android:layout_weight">1</item>
+    <item name="android:layout_marginEnd">10dp</item>
+    <item name="android:background">@drawable/bg_toggle_option</item>
+    <item name="android:gravity">center</item>
+    <item name="android:textColor">@color/ui_purple</item>
+    <item name="android:textSize">17sp</item>
+    <item name="android:textStyle">bold</item>
+</style>
 </resources>

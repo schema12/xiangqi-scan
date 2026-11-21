@@ -22,12 +22,13 @@ class MainActivity : AppCompatActivity() {
         // Bind buttons
         val buttonPlay: Button = findViewById(R.id.button_play)
         val buttonLearn: Button = findViewById(R.id.button_learn)
+        val buttonJieqi: Button = findViewById(R.id.button_jieqi)
         val buttonHelp: Button = findViewById(R.id.button_help)
         val buttonAbout: Button = findViewById(R.id.button_about)
         val buttonPrivacy: Button = findViewById(R.id.button_privacy)
 
         // Give the two main entries a clear title and a quieter second line.
-        for (button in listOf(buttonPlay, buttonLearn)) {
+        for (button in listOf(buttonPlay, buttonLearn, buttonJieqi)) {
             val label = SpannableString(button.text)
             val subtitleStart = label.indexOf('\n') + 1
             if (subtitleStart > 0) {
@@ -46,6 +47,11 @@ class MainActivity : AppCompatActivity() {
         buttonLearn.setOnClickListener {
             // launch manual activity
             val intent = Intent(this, ManualActivity::class.java)
+            startActivity(intent)
+        }
+
+        buttonJieqi.setOnClickListener {
+            val intent = Intent(this, com.zfdang.chess.jieqi.JieqiActivity::class.java)
             startActivity(intent)
         }
 

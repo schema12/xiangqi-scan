@@ -152,7 +152,7 @@ class InformationActivity : AppCompatActivity() {
         heading("象棋鱼", "CHESS FISH\n开源免费的中国象棋学习工具")
         card("一局棋，慢慢来。", "与皮卡鱼引擎过招，查看候选着法与局势评估，或打开一份棋谱重温好棋。", "intro")
         card("版本信息", "应用版本  ${BuildConfig.VERSION_NAME} · ${BuildConfig.VERSION_CODE}\n皮卡鱼引擎与 NNUE  ${EngineAssets.VERSION}", "version")
-        card("开源与致谢", "由 zfdang 维护。\n\n象棋引擎来自 Pikafish；引擎通信代码基于 DroidFish。感谢开源项目与贡献者。源代码及相关许可可在项目仓库中查看。", "credits")
+        card("开源与致谢", "由 zfdang 维护。\n\n象棋引擎来自 Pikafish；引擎通信代码基于 DroidFish。揭棋引擎来自 AB-JChess（GPL-3.0，源码 github.com/lxsgx23/AB-JChess）。感谢开源项目与贡献者。源代码及相关许可可在项目仓库中查看。", "credits")
         link("项目主页", "https://fish.zfdang.com/")
         link("源代码与许可", PROJECT)
         link("版本更新", "$PROJECT/releases")

@@ -29,6 +29,7 @@ class ScanActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PATH = "path"
+        const val EXTRA_JIEQI = "jieqi"
         const val EXTRA_URI = "uri"
         private const val MAX_DIM = 4096   // 实测全分辨率角点最稳，勿随意缩小
     }
@@ -42,6 +43,8 @@ class ScanActivity : AppCompatActivity() {
     private var grid: Array<CharArray> = Array(10) { CharArray(9) { '.' } }
     private var fen: String = ""
     private var sourceBmp: Bitmap? = null
+    /** 揭棋模式：编辑器可摆暗子，校准完成后进入揭棋对弈 */
+    private var jieqiMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,8 +62,10 @@ class ScanActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.btnStartGame).setOnClickListener {
             // 校准完成：先弹棋局设置（先手方默认=识别FEN的轮走方），确认后带设置开局
             val redFirstNow = fen.endsWith(" w - - 0 1") || fen.contains(" w - - 0 1")
-            GameSetupDialog(this, redFirstInit = redFirstNow, redHumanInit = true, blackHumanInit = true) {
-                redFirst, redHuman, blackHuman -> startGame(redFirst, redHuman, blackHuman)
+            GameSetupDialog(this, redFirstInit = redFirstNow, redHumanInit = true, blackHumanInit = false) {
+                redFirst, redHuman, blackHuman ->
+                if (jieqiMode) startJieqiGame(redFirst, redHuman, blackHuman)
+                else startGame(redFirst, redHuman, blackHuman)
             }.show()
         }
         findViewById<LinearLayout>(R.id.btnFlip).setOnClickListener { flipBoard() }
@@ -69,6 +74,8 @@ class ScanActivity : AppCompatActivity() {
             cm.setPrimaryClip(ClipData.newPlainText("FEN", fen))
             Toast.makeText(this, "FEN串已复制到剪贴板", Toast.LENGTH_SHORT).show()
         }
+
+        jieqiMode = intent.getBooleanExtra(EXTRA_JIEQI, false)
 
         val bmp = decodeInput()
         if (bmp == null) {
@@ -244,6 +251,30 @@ class ScanActivity : AppCompatActivity() {
         selectedCell = -1
         board.hidePopup()
         updateFen()
+    }
+
+    /** 揭棋模式开局：FEN + 推导池 → JieqiActivity */
+    private fun startJieqiGame(redFirst: Boolean, redHuman: Boolean, blackHuman: Boolean) {
+        val redK = grid.sumOf { row -> row.count { it == 'K' } }
+        val blackK = grid.sumOf { row -> row.count { it == 'k' } }
+        if (redK != 1 || blackK != 1) {
+            Toast.makeText(this, "棋盘必须包含双方将/帅", Toast.LENGTH_LONG).show()
+            return
+        }
+        val importFen = com.zfdang.chess.jieqi.JieqiGameState.buildImportFen(grid, redFirst)
+        if (importFen == null) {
+            Toast.makeText(this, "揭棋局面无效（暗子位置/身份池不合法）", Toast.LENGTH_LONG).show()
+            return
+        }
+        val i = Intent(this, com.zfdang.chess.jieqi.JieqiActivity::class.java).apply {
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_IMPORT_FEN, importFen)
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RED_HUMAN, redHuman)
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_BLACK_HUMAN, blackHuman)
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RED_FIRST, redFirst)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        startActivity(i)
+        finish()
     }
 
     private fun startGame(redFirst: Boolean, redHuman: Boolean, blackHuman: Boolean) {

@@ -151,7 +151,8 @@ object JieqiRules {
         return false
     }
 
-    private fun findKing(grid: Array<CharArray>, red: Boolean): Pair<Int, Int>? {
+    /** 找到 red 方将/帅位置；供宿主做终局判断。 */
+    fun findKing(grid: Array<CharArray>, red: Boolean): Pair<Int, Int>? {
         val k = if (red) 'K' else 'k'
         for (r in 0 until 10) for (c in 0 until 9) if (grid[r][c] == k) return r to c
         return null

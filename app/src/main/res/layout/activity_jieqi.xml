@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ui_paper">
+
+    <!-- 标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="56dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingHorizontal="12dp">
+
+        <ImageButton android:id="@+id/jqExitbt"
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="返回"
+            app:srcCompat="@drawable/arrow_back" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="揭棋"
+                android:textColor="@color/ui_ink" android:textSize="18sp" android:textStyle="bold"/>
+
+            <TextView android:id="@+id/jqOpponent"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="你执红 · 电脑执黑"
+                android:textColor="@color/ui_muted" android:textSize="12sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.zfdang.chess.jieqi.JieqiBoardView
+                android:id="@+id/jqBoard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"/>
+
+            <TextView android:id="@+id/jqStatus"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp" android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card_white"
+                android:paddingHorizontal="16dp" android:paddingVertical="12dp"
+                android:textColor="@color/ui_red" android:textSize="15sp"
+                android:text="新局，红方先行"/>
+
+            <!-- 工具第一行 -->
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
+                android:background="@drawable/bg_card_white" android:paddingVertical="10dp">
+
+                <LinearLayout android:id="@+id/jqNewbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="新局"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqFlipbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_flip_board" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="翻转"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqUndobt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/arrow_back" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="悔棋"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqHintbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="提示"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqSetupbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="棋局设置"/></LinearLayout>
+            </LinearLayout>
+
+            <!-- 工具第二行 -->
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
+                android:background="@drawable/bg_card_white" android:paddingVertical="10dp">
+
+                <LinearLayout android:id="@+id/jqScanbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_scan_board" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="扫描导入"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqCopybt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_copy_fen" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="复制局面"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqPoolbt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="身份池"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqHistorybt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_manual_folder" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="对局记录"/></LinearLayout>
+            </LinearLayout>
+
+            <TextView android:id="@+id/jqHistory"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp" android:layout_marginTop="10dp"
+                android:layout_marginBottom="24dp"
+                android:background="@drawable/bg_card_white"
+                android:paddingHorizontal="16dp" android:paddingVertical="12dp"
+                android:textColor="@color/ui_ink" android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:text="对局尚未开始"/>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

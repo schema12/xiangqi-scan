@@ -23,6 +23,16 @@
             android:process=":pikafish"
             android:exported="false"
             android:stopWithTask="true" />
+        <service
+            android:name=".jieqi.engine.JieqiService"
+            android:process=":abjchess"
+            android:exported="false"
+            android:stopWithTask="true" />
+        <activity
+            android:name=".jieqi.JieqiActivity"
+            android:theme="@style/Theme.ChineseChess.Refreshed"
+            android:screenOrientation="portrait"
+            android:exported="false" />
         <activity
             android:name=".views.InformationActivity"
             android:theme="@style/Theme.ChineseChess.Refreshed"

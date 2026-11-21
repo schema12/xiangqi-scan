@@ -122,6 +122,44 @@ class JieqiGameState private constructor(
             return sb.toString()
         }
 
+        /**
+         * 扫描导入的池推导：初始池 - 盘面可见明子数（被吃明子会造成多计，
+         * 由「身份池」面板与用户校对；引擎约束 池总数 ≥ 暗子数 在此钳制兜底）。
+         */
+        fun derivePools(grid: Array<CharArray>, redToMove: Boolean):
+                Triple<Array<CharArray>, Boolean, Array<IntArray>> {
+            val pools = Array(2) { intArrayOf(2, 2, 2, 2, 2, 5) }
+            for (r in 0 until 10) for (c in 0 until 9) {
+                val ch = grid[r][c]
+                if (ch == '.' || JieqiRules.isDark(ch)) continue
+                val side = if (JieqiRules.isRed(ch)) 0 else 1
+                val slot = slotOf(ch)
+                if (slot >= 0 && pools[side][slot] > 0) pools[side][slot]--
+            }
+            for (side in 0..1) {
+                var dark = 0
+                for (r in 0 until 10) for (c in 0 until 9)
+                    if (JieqiRules.isDark(grid[r][c]) && JieqiRules.isRed(grid[r][c]) == (side == 0)) dark++
+                var total = pools[side].sum()
+                while (total < dark) {
+                    var idx = -1
+                    var max = 0
+                    for (s in 0 until 6) if (pools[side][s] > max) { max = pools[side][s]; idx = s }
+                    if (idx < 0 || max == 0) break
+                    pools[side][idx]++
+                    total++
+                }
+            }
+            return Triple(grid, redToMove, pools)
+        }
+
+        /** 揭棋导入 FEN：grid + 先手方 → 引擎方言（含推导池）。 */
+        fun buildImportFen(grid: Array<CharArray>, redFirst: Boolean): String? {
+            val trimmed = grid.map { it.copyOf() }.toTypedArray()
+            val (_, _, pools) = derivePools(trimmed, redFirst)
+            return fenOf(trimmed, redFirst, pools)
+        }
+
         /** 解析引擎方言 FEN（棋盘/行棋方/池），失败返回 null。 */
         fun parseFen(fen: String): Triple<Array<CharArray>, Boolean, Array<IntArray>>? {
             val fields = fen.trim().split(Regex("\\s+"))

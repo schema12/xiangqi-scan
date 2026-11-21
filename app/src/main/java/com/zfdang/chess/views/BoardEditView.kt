@@ -37,9 +37,9 @@ class BoardEditView @JvmOverloads constructor(
         const val BOARD_Y_OFFSET = 5
         const val BOARD_GRID_INTERVAL = 136
 
-        /** 14 种棋子 FEN 字符与素材（红 7 + 黑 7） */
+        /** 16 种棋子 FEN 字符与素材（红 7 + 黑 7 + 双方暗子） */
         val PIECES = listOf('K', 'A', 'B', 'N', 'R', 'C', 'P',
-                            'k', 'a', 'b', 'n', 'r', 'c', 'p')
+                            'k', 'a', 'b', 'n', 'r', 'c', 'p', 'X', 'x')
         val PIECE_DRAWABLES = mapOf(
             'K' to R.drawable.r_shuai, 'A' to R.drawable.r_shi, 'B' to R.drawable.r_xiang,
             'N' to R.drawable.r_ma, 'R' to R.drawable.r_ju, 'C' to R.drawable.r_pao,
@@ -48,10 +48,11 @@ class BoardEditView @JvmOverloads constructor(
             'n' to R.drawable.b_ma, 'r' to R.drawable.b_ju, 'c' to R.drawable.b_pao,
             'p' to R.drawable.b_zu
         )
-        /** 每种棋子的标准数量上限（场上已有的不再出现在悬浮窗） */
+        /** 每种棋子的标准数量上限（场上已有的不再出现在悬浮窗；暗子受暗子位数量约束 15/方） */
         val MAX_COUNT = mapOf(
             'K' to 1, 'A' to 2, 'B' to 2, 'N' to 2, 'R' to 2, 'C' to 2, 'P' to 5,
-            'k' to 1, 'a' to 2, 'b' to 2, 'n' to 2, 'r' to 2, 'c' to 2, 'p' to 5
+            'k' to 1, 'a' to 2, 'b' to 2, 'n' to 2, 'r' to 2, 'c' to 2, 'p' to 5,
+            'X' to 15, 'x' to 15
         )
     }
 
@@ -239,6 +240,7 @@ class BoardEditView @JvmOverloads constructor(
         top + (BOARD_Y_OFFSET + BOARD_PIECE_SIZE / 2f + r * BOARD_GRID_INTERVAL) * s
 
     private fun pieceFor(ch: Char): Bitmap? {
+        if (ch == 'X' || ch == 'x') return com.zfdang.chess.jieqi.JieqiTiles.darkTile(ch == 'X')
         pieceCache[ch]?.let { return it }
         val id = PIECE_DRAWABLES[ch] ?: return null
         val bmp = BitmapFactory.decodeResource(resources, id)
