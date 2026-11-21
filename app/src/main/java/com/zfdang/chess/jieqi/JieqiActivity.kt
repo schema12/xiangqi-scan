@@ -187,12 +187,16 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     /** 吃子区：上方是处于棋盘上方的那一方吃掉的子。
      *  棋盘未翻转时红方在下、黑方在上；翻转后相反。 */
     private fun updateCaptured() {
-        // 观察者 = 软件玩家那一方；双方电脑时视为全知(null，用于演示)
-        val observer: Int? = when {
+        // 新局(assignment!=null)：App 持有全部真实身份，按「软件玩家方」过滤可见性
+        //   —— 玩家吃的暗子显示正面，AI 吃的暗子对玩家显示背面（与参考 sanitize 一致）
+        // 扫描局(assignment==null)：App 不知道暗子身份，录入流程已决定 truth：
+        //   AI 吃玩家暗子(用户录入了身份)→正面；玩家吃 AI 暗子(看不到)→'?'背面。
+        //   此处不能再套新局的 observer 过滤，否则两种视角叠加会显示反。
+        val observer: Int? = if (state.assignment != null) when {
             redIsHuman && !blackIsHuman -> 0
             !redIsHuman && blackIsHuman -> 1
             else -> null
-        }
+        } else null   // 扫描局：按 truth 直接显示
         fun viewList(eater: Int) = state.capturedViewList(eater, observer)
         // captured[0] = 红方吃掉的子；captured[1] = 黑方吃掉的子
         if (!board.viewFlipped) {

@@ -282,6 +282,33 @@ class JieqiStateTest {
     }
 
     @Test
+    fun `captured view differs between new game and scan mode`() {
+        // 场景：黑方(eater=1)吃了红方一个暗子
+        val s = JieqiGameState.newGame(java.util.Random(1))
+
+        // --- 新局：App 全知，玩家是红方(observer=0) ---
+        // 自动揭晓真实身份(如 'p' 红兵... 用黑方吃的红暗子 R 举例)
+        s.captured[1].add(CapturedPiece('R', true))
+        // 红方玩家看黑方吃的暗子 -> 背面(不知道)
+        assertEquals('X', s.capturedViewList(1, 0)[0])
+        // 黑方视角(若玩家执黑) -> 正面
+        assertEquals('R', s.capturedViewList(1, 1)[0])
+
+        // --- 扫描局：observer=null，直接按 truth 显示 ---
+        val s2 = JieqiGameState.newGame(java.util.Random(2))
+        s2.captured[0].clear(); s2.captured[1].clear()
+        // AI(黑)吃玩家暗子：用户录入了身份 -> truth='R' -> 正面
+        s2.captured[1].add(CapturedPiece('R', true))
+        assertEquals('R', s2.capturedViewList(1, null)[0])
+        // 玩家(红)吃AI暗子：看不到 -> truth='?' -> 背面
+        s2.captured[0].add(CapturedPiece('?', true))
+        assertEquals('X', s2.capturedViewList(0, null)[0])
+        // 明子双方都可见
+        s2.captured[0].add(CapturedPiece('r', false))
+        assertEquals('r', s2.capturedViewList(0, 1)[1])
+    }
+
+    @Test
     fun `soldier crossing river gains sideways moves`() {
         val fen = "4k4/9/9/9/4P4/9/9/4K4/9/9 w R2A2C2P4N2B2r2a2c2p5n2b2 0 1"
         val (grid, redToMove, pools) = JieqiGameState.parseFen(fen)!!
