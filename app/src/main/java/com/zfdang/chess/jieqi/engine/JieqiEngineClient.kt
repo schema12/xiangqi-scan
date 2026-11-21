@@ -87,19 +87,21 @@ class JieqiEngineClient(
         service = null
         if (closed) return
         // 自动重启一次（后续失败交给宿主提示）
-        if (retryCount < 1 && restartCommands.isNotEmpty()) {
+        if (retryCount < 2 && restartCommands.isNotEmpty()) {
             retryCount++
             restartedForRetry = true
             uciOk = false; readyOk = false
-            start()
+            // 旧会话释放可能有延迟（Activity 重建竞态），延迟重启
+            main.postDelayed({ if (!closed) start() }, 900)
             return
         }
         listener.onDead(if (error.isBlank()) "engine exited" else error)
     }
 
     private fun sendPending() {
-        if (!uciOk || service == null) return
-        for (c in pending) service?.command(session, c)
+        // 引擎命令在 JNI 队列内保序：无需等待握手完成即可直发
+        val svc = service ?: return
+        for (c in pending) svc.command(session, c)
         pending.clear()
     }
 
@@ -150,8 +152,9 @@ class JieqiEngineClient(
     fun send(command: String) {
         if (closed) return
         GcLog.d("JQ->: $command")
-        if (!uciOk || !readyOk || service == null) { pending.add(command); return }
-        try { service?.command(session, command) } catch (e: RemoteException) {
+        val svc = service
+        if (svc == null) { pending.add(command); return }
+        try { svc.command(session, command) } catch (e: RemoteException) {
             GcLog.d("JQ send failed: $e")
         }
     }

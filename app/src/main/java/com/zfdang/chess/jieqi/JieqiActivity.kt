@@ -292,6 +292,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     private fun commitMove(fr: Int, fc: Int, tr: Int, tc: Int, reveal: Char, victimReveal: Char) {
         val err = state.applyMove(fr, fc, tr, tc, reveal, victimReveal)
+        GcLog.d("JQ commitMove: $fr,$fc->$tr,$tc reveal=$reveal victim=$victimReveal err=$err redToMoveNow=" + state.redToMove)
         if (err != null) { toast(err); undoStack.removeLastOrNull(); return }
         afterMoveApplied(fr, fc, tr, tc)
     }
@@ -317,7 +318,10 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     }
 
     private fun maybeEngineForward() {
-        if (humanTurn() || thinking || !engineReady || stateIsOver()) return
+        val over = stateIsOver()
+        GcLog.d("JQ maybeForward: humanTurn=" + humanTurn() + " thinking=" + thinking +
+            " ready=" + engineReady + " over=" + over + " redToMove=" + state.redToMove)
+        if (humanTurn() || thinking || !engineReady || over) return
         thinking = true
         updateStatus()
         main.postDelayed({
@@ -344,6 +348,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     override fun onEngineLine(line: String) { /* info 展示留待后续 */ }
 
     override fun onBestMove(move: String) {
+        GcLog.d("JQ onBestMove: move=$move hintPending=$hintPending thinking=$thinking redToMove=" + state.redToMove)
         val wasHint = hintPending
         hintPending = false
         thinking = false

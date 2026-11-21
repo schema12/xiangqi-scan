@@ -13,14 +13,11 @@ import java.security.MessageDigest
 object JieqiAssets {
     const val ENGINE_VERSION = "AB-JChess-20261031"
     const val NET_NAME = "abjchess-20261030.nnue"
-    const val NET_SHA256 = "fdb6245b868bb204cf2b64fc4f8440d7a1e22b73abdd2c226dd5c46907050419"
-    const val ENGINE_SHA256 = "1cc6e52a3b040343f952c1394ea9bd315bd7ecbd3800cad8eabd949de0aa54d2"
-    const val ENGINE_SIZE = 1811016L
+    const val NET_SHA256 = "fdb6245b868bb204cf2b64fc4f8440d7a1e22b73abdd2a13dce180b65b01619e"
     const val NET_SIZE = 580156L
 
+    /** 引擎目录（NNUE 数据所在）：filesDir/abjchess */
     fun engineDir(context: Context): File = File(context.getFilesDir(), "abjchess")
-
-    fun engineFile(context: Context): File = File(engineDir(context), "abjchess")
 
     fun networkFile(context: Context): File = File(engineDir(context), NET_NAME)
 
@@ -70,12 +67,8 @@ object JieqiAssets {
         return digest.equals(sha256, ignoreCase = true)
     }
 
-    /** 在 service worker 线程调用：确保引擎二进制（可执行）与网络文件就绪。 */
+    /** 在 service worker 线程调用：确保 NNUE 网络文件就绪（引擎库由 jniLibs 装载）。 */
     fun prepare(context: Context) {
-        extract(context, "jieqi/abjchess.arm64.bin", engineFile(context), ENGINE_SHA256, ENGINE_SIZE)
         extract(context, "jieqi/$NET_NAME", networkFile(context), NET_SHA256, NET_SIZE)
-        val bin = engineFile(context)
-        if (!bin.setExecutable(true, false) || !bin.canExecute())
-            throw IOException("Cannot mark engine executable")
     }
 }
