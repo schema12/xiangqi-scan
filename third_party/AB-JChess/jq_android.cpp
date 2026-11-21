@@ -102,6 +102,10 @@ Java_com_zfdang_chess_jieqi_engine_JieqiNativeBridge_create(JNIEnv* env, jclass,
     g_session.onLine = env->GetMethodID(cls, "onLine", "(Ljava/lang/String;)V");
     g_session.onFinished = env->GetMethodID(cls, "onFinished", "(Ljava/lang/String;)V");
     env->DeleteLocalRef(cls);
+    // 重置上一会话的停止状态与残留命令队列
+    g_session.stopping = false;
+    std::queue<std::string> empty;
+    std::swap(g_session.commands, empty);
     return 1;
 }
 
