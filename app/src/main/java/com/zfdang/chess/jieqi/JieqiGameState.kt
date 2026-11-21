@@ -19,9 +19,9 @@ class JieqiGameState private constructor(
     var redToMove: Boolean,
     val pools: Array<IntArray>,
     val assignment: Array<CharArray>?,
-    val startFen: String,
+    var startFen: String,
     val tokens: MutableList<String>,
-    val startRedToMove: Boolean,
+    var startRedToMove: Boolean,
     /** 各方「身份不明的被吃暗子」计数（校对面板展示；引擎池不扣减） */
     val darkCapturedUnknown: IntArray,
     /** 对局记录（人类可读，一条一手） */
@@ -240,6 +240,18 @@ class JieqiGameState private constructor(
         return n
     }
 
+    /**
+     * 以当前局面为新的引擎起点（棋局设置中途改先手方时调用）。
+     * 引擎的行棋方由 startFen+token 奇偶决定，直接改 redToMove 会使两边错位一手；
+     * rebase 把当前 grid/池/新轮走方固化为 startFen 并清空 token 历史。
+     */
+    fun rebase(redFirst: Boolean) {
+        startFen = fenOf(grid, redFirst, pools)
+        startRedToMove = redFirst
+        redToMove = redFirst
+        tokens.clear()
+    }
+
     fun snapshot(): JieqiGameState = JieqiGameState(
         grid.map { it.copyOf() }.toTypedArray(), redToMove,
         pools.map { it.copyOf() }.toTypedArray(),
@@ -276,14 +288,17 @@ class JieqiGameState private constructor(
      * @param victimReveal 被吃暗子的已知身份；未知传 '.'（引擎保持概率分布，池不扣减）
      * @return 错误消息；null = 成功
      */
-    fun applyMove(fr: Int, fc: Int, tr: Int, tc: Int, reveal: Char, victimReveal: Char): String? {
+    fun applyMove(fr: Int, fc: Int, tr: Int, tc: Int, reveal: Char, victimReveal: Char,
+                  trustEngine: Boolean = false): String? {
         val mover = grid[fr][fc]
         if (mover == '.') return "起点无子"
         if (JieqiRules.isRed(mover) != redToMove) return "不是该方的棋子"
         val victim = grid[tr][tc]
         val movedDark = JieqiRules.isDark(mover)
         val capturedDark = victim != '.' && JieqiRules.isDark(victim)
-        if (!JieqiRules.isLegal(grid, redToMove, fr, fc, tr, tc)) return "非法走法"
+        // trustEngine：AI 的走法来自引擎 gen_legal（引擎局面权威），跳过 App 端校验，
+        // 避免移植差异把合法走法误拒导致对弈卡死
+        if (!trustEngine && !JieqiRules.isLegal(grid, redToMove, fr, fc, tr, tc)) return "非法走法"
         val us = if (redToMove) 0 else 1
         // 新开对局：App 持有秘密分配，暗子揭晓自动取真实身份；扫描模式必须由用户录入
         val effReveal = if (movedDark) {

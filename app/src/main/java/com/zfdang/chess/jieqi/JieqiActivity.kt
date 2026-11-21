@@ -290,10 +290,24 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         commitMove(pm.fr, pm.fc, pm.tr, pm.tc, pm.reveal, victim)
     }
 
-    private fun commitMove(fr: Int, fc: Int, tr: Int, tc: Int, reveal: Char, victimReveal: Char) {
-        val err = state.applyMove(fr, fc, tr, tc, reveal, victimReveal)
+    private var aiRetryUsed = false
+
+    private fun commitMove(fr: Int, fc: Int, tr: Int, tc: Int, reveal: Char, victimReveal: Char, isAiMove: Boolean = false) {
+        val err = state.applyMove(fr, fc, tr, tc, reveal, victimReveal, trustEngine = isAiMove)
         GcLog.d("JQ commitMove: $fr,$fc->$tr,$tc reveal=$reveal victim=$victimReveal err=$err redToMoveNow=" + state.redToMove)
-        if (err != null) { toast(err); undoStack.removeLastOrNull(); return }
+        if (err != null) {
+            if (isAiMove) {
+                // 引擎与 App 局面漂移的保险：重发 position 并重试一次
+                thinking = false
+                if (aiRetryUsed) { toast("引擎同步异常，请点「新局」重开"); aiRetryUsed = false; return }
+                aiRetryUsed = true
+                syncEngine()
+                maybeEngineForward()
+                return
+            }
+            toast(err); undoStack.removeLastOrNull(); return
+        }
+        aiRetryUsed = false
         afterMoveApplied(fr, fc, tr, tc)
     }
 
@@ -404,7 +418,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             updateStatus()
             return true
         }
-        commitMove(gr, gc, gtr, gtc, '.', '.')
+        commitMove(gr, gc, gtr, gtc, '.', '.', isAiMove = true)
         return true
     }
 
@@ -487,8 +501,9 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             redIsHuman = redHuman
             blackIsHuman = blackHuman
             // 应用到当前局面：轮走方改为先手方所选
+            // （引擎行棋方由 startFen+token 奇偶决定，必须 rebase 同步，否则 AI 走子永远被拒）
             undoStack.addLast(state.snapshot())
-            state.redToMove = redFirst
+            state.rebase(redFirst)
             thinking = false
             finishBoardSetup(resumed = true)
             board.grid = state.grid
