@@ -390,7 +390,9 @@ class JieqiStateTest {
 
     @Test
     fun `scan import pool clamps when revealed pieces exceed initial pool`() {
-        // 识别把 3 个红车摆在盘面（含错误），池推导不得崩溃且仍满足 >= 暗子数
+        // 识别把 3 个红车摆在盘面（识别错误或用户摆错）：车只扣减 2 个池位（钳到 0），
+        // 泄漏 1 个亏空，使 池总数 < 暗子数，derivePools 必须钳制兜底且 parseFen 接受。
+        // 注意：暗子只能摆在暗子角色位（王位 e9 无暗子身份，不可摆暗子）。
         val rows = listOf(
             "xxxxkxxxx",
             ".........",
@@ -400,8 +402,8 @@ class JieqiStateTest {
             ".........",
             "X.X.X.X.X",
             ".X.....X.",
-            ".........",
-            "XXXKXRRRX"  // 帅 + 3 个"红车"（识别错误或用户摆错）
+            "..R.R.R..",   // 3 个"红车"摆在非暗子位（c8/e8/g8）
+            "XXXK.XXXX"
         )
         val grid = Array(10) { r -> rows[r].toCharArray() }
         val fen = JieqiGameState.buildImportFen(grid, redFirst = true)
@@ -409,7 +411,10 @@ class JieqiStateTest {
         val (g2, _, pools) = JieqiGameState.parseFen(fen!!)!!
         var redDark = 0
         for (r in 0 until 10) for (c in 0 until 9) if (g2[r][c] == 'X') redDark++
-        assertTrue("池总数必须 >= 红暗子数", pools[0].sum() >= redDark)
+        // 14 个红暗子（15 槽 - 帅占 d9），池 15-2-2=11 < 14 → 必须钳制到 14
+        assertEquals(14, redDark)
+        assertTrue("池总数(${pools[0].sum()}) 必须 >= 红暗子数($redDark)", pools[0].sum() >= redDark)
+        assertTrue("钳制应发生（池被虚构膨胀）", pools[0][5] > 5 || pools[0][0] > 2)
     }
 
     @Test
