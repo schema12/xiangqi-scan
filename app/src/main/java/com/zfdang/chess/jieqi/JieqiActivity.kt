@@ -252,6 +252,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     // ------------------------------------------------------------------
 
     private fun onCellTap(r: Int, c: Int) {
+        val tappedPiece = state.grid.getOrNull(r)?.getOrNull(c) ?: '?'
+        GcLog.d("JQ tap: grid[$r][$c]='$tappedPiece' redToMove=${state.redToMove} redIsHuman=$redIsHuman blackIsHuman=$blackIsHuman sel=$board.selected hint=${"abcdefghi"[c]}${9-r}")
         if (thinking) { toast("电脑思考中，请稍候..."); return }
         if (!humanTurn()) { toast("等待对方出招"); return }
         if (r !in 0..9 || c !in 0..8) return
@@ -260,9 +262,10 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         if (sel >= 0) {
             val fr = sel / 9; val fc = sel % 9
             if (r == fr && c == fc) { board.selected = -1; return }
-            val move = intArrayOf(fr, fc, r, c)
-            if (prepareMove(move)) return
-            // 非法：改选新子
+            // 已选中棋子：本次点击视为目标格。无论是否合法，都不应把目标格当成「改选棋子」
+            // （目标格常是对方暗子，旧代码 fallthrough 后误弹「该走红方棋子」）。
+            prepareMove(intArrayOf(fr, fc, r, c))
+            return
         }
         val p = state.grid[r][c]
         if (p != '.' && JieqiRules.isRed(p) == state.redToMove) {
@@ -275,7 +278,14 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     /** 组装一手：需要身份录入时弹窗，否则直接应用。返回 true = 已受理（弹窗或已走）。 */
     private fun prepareMove(move: IntArray): Boolean {
         val (fr, fc, tr, tc) = listOf(move[0], move[1], move[2], move[3])
-        if (!JieqiRules.isLegal(state.grid, state.redToMove, fr, fc, tr, tc)) return false
+        if (!JieqiRules.isLegal(state.grid, state.redToMove, fr, fc, tr, tc)) {
+            board.selected = -1
+            // 区分非法原因：送将(含照面) vs 不符合走法规则
+            val exposes = (tr to tc) in JieqiRules.destinations(state.grid, fr, fc) &&
+                JieqiRules.wouldExposeKing(state.grid, state.redToMove, fr, fc, tr, tc)
+            toast(if (exposes) "不能送将" else "该走法不合法")
+            return false
+        }
         val mover = state.grid[fr][fc]
         val victim = state.grid[tr][tc]
         val movedDark = JieqiRules.isDark(mover)

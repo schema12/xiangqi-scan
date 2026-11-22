@@ -245,7 +245,9 @@ object JieqiRules {
     // 合法性（legal 移植）：走后己方将/帅不被攻击（含照面）
     // ------------------------------------------------------------------
 
-    private fun kingAttackedAfter(grid: Array<CharArray>, red: Boolean, fr: Int, fc: Int, tr: Int, tc: Int): Boolean {
+    /** 走这步后己方帅/将是否会被攻击（送将/照面）。供 UI 区分非法原因。 */
+    fun wouldExposeKing(grid: Array<CharArray>, red: Boolean, fr: Int, fc: Int, tr: Int, tc: Int): Boolean {
+        if (fr !in 0..9 || fc !in 0..8 || tr !in 0..9 || tc !in 0..8) return false
         // 构造走后局面（仅影响攻击检测；暗子按原字符留在目标格）
         val piece = grid[fr][fc]
         val victim = grid[tr][tc]
@@ -268,7 +270,7 @@ object JieqiRules {
             if (t == 'K' || t == 'k') return false
         }
         if ((tr to tc) !in destinations(grid, fr, fc)) return false
-        return !kingAttackedAfter(grid, redToMove, fr, fc, tr, tc)
+        return !wouldExposeKing(grid, redToMove, fr, fc, tr, tc)
     }
 
     /** 当前局面全部合法走法（引擎 gen_legal 对齐）。 */
@@ -278,7 +280,7 @@ object JieqiRules {
             val p = grid[r][c]
             if (p == '.' || isRed(p) != redToMove) continue
             for ((tr, tc) in destinations(grid, r, c)) {
-                if (!kingAttackedAfter(grid, redToMove, r, c, tr, tc)) out.add(Triple(r, c, tr * 9 + tc))
+                if (!wouldExposeKing(grid, redToMove, r, c, tr, tc)) out.add(Triple(r, c, tr * 9 + tc))
             }
         }
         return out
