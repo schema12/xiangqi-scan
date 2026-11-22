@@ -211,7 +211,10 @@ class JieqiGameState private constructor(
                     val num = StringBuilder()
                     while (i < poolStr.length && poolStr[i].isDigit()) { num.append(poolStr[i++]) }
                     if (num.isNotEmpty()) n = num.toString().toIntOrNull() ?: return null
-                    if (n > URN_INIT[slot]) return null
+                    // 注意：扫描中局导入的推导池会被 derivePools 钳制到可能超过
+                    // URN_INIT 的值（被吃暗子的池亏空由虚构膨胀兜底，保证 池总数>=暗子数），
+                    // 因此这里只做总量合理性校验，不按初始上限拒绝
+                    if (n > 15) return null
                     pools[if (ch.isUpperCase()) 0 else 1][slot] = n
                 }
             }
