@@ -35,6 +35,8 @@ class OnnxBoardRecognizer(private val context: Context) {
     companion object {
         const val POSE_MODEL = "models/4_v6-0301.onnx"
         const val LAYOUT_MODEL = "models/nano_v3-0319.onnx"
+        /** 揭棋专用 17 类分类器（. X x KABNRCP kabnrcp），与普通象棋模型相互独立 */
+        const val JIEQI_MODEL = "models/jieqi17_v1.onnx"
 
         private const val POSE_INPUT_SIZE = 256
         private const val POSE_PADDING = 1.25f
@@ -51,9 +53,16 @@ class OnnxBoardRecognizer(private val context: Context) {
         private val MEAN_R = 123.675f; private val MEAN_G = 116.28f; private val MEAN_B = 103.53f
         private val STD_R = 58.395f;  private val STD_G = 57.12f;   private val STD_B = 57.375f
 
-        /** 16 类，顺序与训练侧一致 */
+        /** 普通象棋 16 类，顺序与训练侧一致 */
         private val CLASS_NAMES = charArrayOf(
             '.', 'x',
+            'K', 'A', 'B', 'N', 'R', 'C', 'P',
+            'k', 'a', 'b', 'n', 'r', 'c', 'p'
+        )
+
+        /** 揭棋 17 类：空位 + 红暗/黑暗 + 红 7 + 黑 7（此处 'x' 语义是黑暗子，不再是旧模型的"其他"） */
+        private val CLASS_NAMES_JIEQI = charArrayOf(
+            '.', 'X', 'x',
             'K', 'A', 'B', 'N', 'R', 'C', 'P',
             'k', 'a', 'b', 'n', 'r', 'c', 'p'
         )
@@ -79,27 +88,36 @@ class OnnxBoardRecognizer(private val context: Context) {
     private var layoutOutputName = "output"
     private var loaded = false
 
+    /** 揭棋模式：加载揭棋专用分类器；普通模式（默认）不受任何影响 */
+    private var jieqiMode = false
+    private val classNames: CharArray get() = if (jieqiMode) CLASS_NAMES_JIEQI else CLASS_NAMES
+    private val classCount: Int get() = classNames.size
+
     val isLoaded: Boolean get() = loaded
 
     /** 最近一次 recognize 的全部候选诊断串 */
     var lastCandidatesDump: String = ""
         private set
 
-    fun load() {
-        if (loaded) return
+    fun load(jieqi: Boolean = false) {
+        if (loaded && jieqi == jieqiMode) return
+        release()
+        jieqiMode = jieqi
         val t0 = System.currentTimeMillis()
         context.assets.open(POSE_MODEL).use { s ->
             poseSession = ortEnv.createSession(s.readBytes(), OrtSession.SessionOptions())
             poseInputName = poseSession!!.inputNames.iterator().next()
             poseOutputNames = poseSession!!.outputNames.toList()
         }
-        context.assets.open(LAYOUT_MODEL).use { s ->
+        val classifierAsset = if (jieqi) JIEQI_MODEL else LAYOUT_MODEL
+        context.assets.open(classifierAsset).use { s ->
             layoutSession = ortEnv.createSession(s.readBytes(), OrtSession.SessionOptions())
             layoutInputName = layoutSession!!.inputNames.iterator().next()
             layoutOutputName = layoutSession!!.outputNames.first()
         }
         loaded = true
-        android.util.Log.i("BoardRec", "models loaded in ${System.currentTimeMillis() - t0}ms")
+        android.util.Log.i("BoardRec",
+            "models loaded (jieqi=$jieqi) in ${System.currentTimeMillis() - t0}ms")
     }
 
     fun release() {
@@ -197,17 +215,27 @@ class OnnxBoardRecognizer(private val context: Context) {
             val counts = HashMap<Char, Int>()
             for (r in 0 until 10) for (c in 0 until 9) {
                 val i = r * 9 + c
-                val ch = CLASS_NAMES[labels[i]]
+                val ch = classNames[labels[i]]
                 confOut[i] = probs[i]
-                if (ch == '.' || ch == 'x') continue
-                var side = if (ch.isUpperCase()) 'R' else 'B'
-                // 仕/相（士/象）不过河：侧别按行范围约束修正
-                val lower = ch.lowercaseChar()
-                if (lower == 'a' || lower == 'b') {
-                    side = if (r >= 5) 'R' else 'B'
+                if (jieqiMode) {
+                    // 揭棋：暗子（X/x）原样保留；不做仕/相行范围侧别修正
+                    //（揭棋明士可出九宫、明象可过河，行范围修正会主动改错颜色）
+                    if (ch == '.') continue
+                    grid[r][c] = ch
+                    if (ch != 'X' && ch != 'x') {
+                        counts[ch] = (counts[ch] ?: 0) + 1
+                    }
+                } else {
+                    if (ch == '.' || ch == 'x') continue
+                    var side = if (ch.isUpperCase()) 'R' else 'B'
+                    // 仕/相（士/象）不过河：侧别按行范围约束修正
+                    val lower = ch.lowercaseChar()
+                    if (lower == 'a' || lower == 'b') {
+                        side = if (r >= 5) 'R' else 'B'
+                    }
+                    grid[r][c] = if (side == 'R') ch.uppercaseChar() else ch.lowercaseChar()
+                    counts[grid[r][c]] = (counts[grid[r][c]] ?: 0) + 1
                 }
-                grid[r][c] = if (side == 'R') ch.uppercaseChar() else ch.lowercaseChar()
-                counts[grid[r][c]] = (counts[grid[r][c]] ?: 0) + 1
             }
             val warnings = mutableListOf<String>()
             val kings = (counts['K'] ?: 0) + (counts['k'] ?: 0)
@@ -332,8 +360,8 @@ class OnnxBoardRecognizer(private val context: Context) {
             val probs = FloatArray(90)
             for (i in 0 until 90) {
                 var mx = -1e20f; var mxi = 0; var second = -1e20f
-                val off = i * 16
-                for (j in 0 until 16) {
+                val off = i * classCount
+                for (j in 0 until classCount) {
                     val v = data[off + j]
                     if (v > mx) { second = mx; mx = v; mxi = j }
                     else if (v > second) second = v

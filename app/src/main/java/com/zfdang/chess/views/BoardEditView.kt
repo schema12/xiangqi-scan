@@ -70,6 +70,10 @@ class BoardEditView @JvmOverloads constructor(
     var selected = -1
         set(value) { field = value; invalidate() }
 
+    /** 低置信度格（识别校对提示）：在格子右上角画琥珀色小三角 */
+    var uncertainCells: Set<Int> = emptySet()
+        set(value) { field = value; invalidate() }
+
     /** 悬浮窗：显示的棋子（按剩余数量动态计算） */
     var popupPieces: List<Char> = emptyList()
         private set
@@ -154,6 +158,28 @@ class BoardEditView @JvmOverloads constructor(
                         Rect((cx - pieceSize / 2).toInt(), (cy - pieceSize / 2).toInt(),
                             (cx + pieceSize / 2).toInt(), (cy + pieceSize / 2).toInt()), paint)
                 }
+                drawDarkBadge(canvas, ch, cx, cy)
+            }
+        }
+
+        // 低置信度标记（琥珀色小三角，格子右上角）
+        if (uncertainCells.isNotEmpty()) {
+            val t = pieceSize * 0.34f
+            for (idx in uncertainCells) {
+                val r = idx / 9; val c = idx % 9
+                val cx = cellX(vCol(c)); val cy = cellY(vRow(r))
+                val rx = cx + pieceSize / 2 - 2f
+                val ry = cy - pieceSize / 2 + 2f
+                val path = android.graphics.Path().apply {
+                    moveTo(rx, ry)
+                    lineTo(rx - t, ry)
+                    lineTo(rx, ry + t)
+                    close()
+                }
+                paint.style = Paint.Style.FILL
+                paint.color = 0xFFF2A33C.toInt()
+                canvas.drawPath(path, paint)
+                paint.style = Paint.Style.FILL
             }
         }
 
@@ -228,6 +254,7 @@ class BoardEditView @JvmOverloads constructor(
                     canvas.drawBitmap(it, null,
                         Rect((x - r).toInt(), (y - r).toInt(), (x + r).toInt(), (y + r).toInt()), paint)
                 }
+                drawDarkBadge(canvas, ch, x, y)
                 itemRects.add(RectF(x - r, y - r, x + r, y + r))
             }
             rowIdx++
@@ -238,6 +265,18 @@ class BoardEditView @JvmOverloads constructor(
         (BOARD_X_OFFSET + BOARD_PIECE_SIZE / 2f + c * BOARD_GRID_INTERVAL) * s
     private fun cellY(r: Int) =
         top + (BOARD_Y_OFFSET + BOARD_PIECE_SIZE / 2f + r * BOARD_GRID_INTERVAL) * s
+
+    /** 编辑器内暗子归属角标：红暗=红点、黑暗=绿点（仅校对界面；对局内暗子仍统一木色） */
+    private fun drawDarkBadge(canvas: Canvas, ch: Char, cx: Float, cy: Float) {
+        if (ch != 'X' && ch != 'x') return
+        val badge = pieceSize * 0.17f
+        val bx = cx + pieceSize / 2 - badge * 1.3f
+        val by = cy - pieceSize / 2 + badge * 1.3f
+        paint.style = Paint.Style.FILL
+        paint.color = if (ch == 'X') 0xFFD0342C.toInt() else 0xFF3C8C4E.toInt()
+        canvas.drawCircle(bx, by, badge, paint)
+        paint.style = Paint.Style.FILL
+    }
 
     private fun pieceFor(ch: Char): Bitmap? {
         if (ch == 'X' || ch == 'x') return com.zfdang.chess.jieqi.JieqiTiles.darkTile()

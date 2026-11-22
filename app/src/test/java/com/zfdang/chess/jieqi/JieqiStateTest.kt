@@ -343,4 +343,82 @@ class JieqiStateTest {
         // 过河兵：前进 + 左右横移
         assertEquals(3, dests.size)
     }
+
+    // ------------------------------------------------------------------
+    // 扫描导入闭环（识别 → 校对 → buildImportFen → parseFen → 引擎可开局）
+    // ------------------------------------------------------------------
+
+    private fun scanLikeGrid(): Array<CharArray> {
+        // 模拟识别校对后的中局局面：双方各有明子与暗子（含出宫黑士、过河黑马）
+        val rows = listOf(
+            ".b.xk..p.",
+            "..c......",
+            "....p....",
+            ".RC......",
+            "....p....",
+            "..P......",
+            "X...aA...",
+            ".........",
+            ".bn.P..r.",
+            "XXXK.X.XX"
+        )
+        return Array(10) { r -> rows[r].toCharArray() }
+    }
+
+    @Test
+    fun `scan import builds legal engine fen and round-trips`() {
+        val grid = scanLikeGrid()
+        val fen = JieqiGameState.buildImportFen(grid, redFirst = true)
+        assertNotNull(fen)
+        val (g2, redToMove, pools) = JieqiGameState.parseFen(fen!!)!!
+        assertTrue(redToMove)
+        // 棋盘逐格一致（暗子保留 X/x 语义）
+        for (r in 0 until 10) for (c in 0 until 9) assertEquals(grid[r][c], g2[r][c])
+        // 暗子数与池约束：每方 池总数 >= 暗子数
+        var redDark = 0; var blackDark = 0
+        for (r in 0 until 10) for (c in 0 until 9) {
+            if (g2[r][c] == 'X') redDark++
+            if (g2[r][c] == 'x') blackDark++
+        }
+        assertTrue(pools[0].sum() >= redDark)
+        assertTrue(pools[1].sum() >= blackDark)
+        // 直接可作为 JieqiGameState 初始状态（引擎导入前置校验）
+        val s = JieqiGameState.fromImported(g2, redToMove, pools)
+        assertEquals(redDark, s.darkCount(true))
+        assertEquals(blackDark, s.darkCount(false))
+    }
+
+    @Test
+    fun `scan import pool clamps when revealed pieces exceed initial pool`() {
+        // 识别把 3 个红车摆在盘面（含错误），池推导不得崩溃且仍满足 >= 暗子数
+        val rows = listOf(
+            "xxxxkxxxx",
+            ".........",
+            ".C.....C.",
+            "x.x.x.x.x",
+            ".........",
+            ".........",
+            "X.X.X.X.X",
+            ".X.....X.",
+            ".........",
+            "XXXKXRRRX"  // 帅 + 3 个"红车"（识别错误或用户摆错）
+        )
+        val grid = Array(10) { r -> rows[r].toCharArray() }
+        val fen = JieqiGameState.buildImportFen(grid, redFirst = true)
+        assertNotNull(fen)
+        val (g2, _, pools) = JieqiGameState.parseFen(fen!!)!!
+        var redDark = 0
+        for (r in 0 until 10) for (c in 0 until 9) if (g2[r][c] == 'X') redDark++
+        assertTrue("池总数必须 >= 红暗子数", pools[0].sum() >= redDark)
+    }
+
+    @Test
+    fun `scan editor rejects dark placed off dark squares`() {
+        // 暗子放到河中心（无初始角色位）→ buildImportFen 不可解析为合法引擎局面
+        val grid = scanLikeGrid()
+        grid[4][4] = 'X'   // e5 无暗子初始位
+        val fen = JieqiGameState.buildImportFen(grid, redFirst = true)
+        assertNotNull(fen)
+        assertNull("河中心的暗子应被 parseFen 拒绝", JieqiGameState.parseFen(fen!!))
+    }
 }

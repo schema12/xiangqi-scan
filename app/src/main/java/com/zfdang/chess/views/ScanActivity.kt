@@ -100,7 +100,8 @@ class ScanActivity : AppCompatActivity() {
             var rec: OnnxBoardRecognizer? = null
             try {
                 rec = OnnxBoardRecognizer(this)
-                rec.load()
+                // 揭棋模式加载揭棋专用 17 类模型（普通模式加载原模型，互不影响）
+                rec.load(jieqi = jieqiMode)
                 val r = rec.recognize(bmp)
                 runOnUiThread {
                     overlay.visibility = View.GONE
@@ -124,7 +125,19 @@ class ScanActivity : AppCompatActivity() {
         fen = r.fen
         board.grid = grid
         updateFen()
-        tvConf.text = "置信度 ${(r.avgConfidence * 100).toInt()}% (${r.elapsedMs}ms)"
+        // 低置信度格标记（揭棋模式下暗子/明子分别校准；普通模式沿用统一阈值）
+        val uncertain = buildSet {
+            for (i in 0 until 90) {
+                val th = if (jieqiMode) {
+                    if (grid[i / 9][i % 9] == 'X' || grid[i / 9][i % 9] == 'x') 0.55f else 0.35f
+                } else 0.5f
+                if (r.confidences[i] < th) add(i)
+            }
+        }
+        board.uncertainCells = uncertain
+        val hint = if (jieqiMode && uncertain.isNotEmpty())
+            "，${uncertain.size} 格低置信度(黄点)请核对" else ""
+        tvConf.text = "置信度 ${(r.avgConfidence * 100).toInt()}% (${r.elapsedMs}ms)$hint"
         if (r.warnings.isNotEmpty()) {
             Toast.makeText(this, "注意: ${r.warnings.joinToString("；")}", Toast.LENGTH_LONG).show()
         }
@@ -156,6 +169,7 @@ class ScanActivity : AppCompatActivity() {
             board.selected = -1
             board.grid = grid
             board.hidePopup()
+            board.uncertainCells = board.uncertainCells - idx - (sr * 9 + sc)
             updateFen()
             return
         }
@@ -180,6 +194,11 @@ class ScanActivity : AppCompatActivity() {
         val name = pieceName(ch)
         val red = ch.isUpperCase()
         val lower = ch.lowercaseChar()
+        if (ch == 'X' || ch == 'x') {
+            // 暗子只能摆在有初始角色意义的暗子位（引擎方言约束，与 buildImportFen 校验一致）
+            val ok = com.zfdang.chess.jieqi.JieqiRules.darkRole(r, c, ch == 'X') != '.'
+            return if (ok) null else "暗子只能摆在双方初始兵/炮/车/马/士/象位"
+        }
         return when (lower) {
             // 将/帅、士/仕：只能在己方九宫（列 3..5；红行 7..9，黑行 0..2）
             'k', 'a' -> {
@@ -205,6 +224,7 @@ class ScanActivity : AppCompatActivity() {
     private fun pieceName(ch: Char): String = when (ch) {
         'K' -> "帅"; 'A' -> "仕"; 'B' -> "相"; 'N' -> "马"; 'R' -> "车"; 'C' -> "炮"; 'P' -> "兵"
         'k' -> "将"; 'a' -> "士"; 'b' -> "象"; 'n' -> "马"; 'r' -> "车"; 'c' -> "炮"; 'p' -> "卒"
+        'X' -> "红暗子"; 'x' -> "黑暗子"
         else -> "棋子"
     }
 
@@ -219,6 +239,7 @@ class ScanActivity : AppCompatActivity() {
         grid[r][c] = ch
         board.grid = grid
         board.hidePopup()
+        board.uncertainCells = board.uncertainCells - (r * 9 + c)
         updateFen()
     }
 
