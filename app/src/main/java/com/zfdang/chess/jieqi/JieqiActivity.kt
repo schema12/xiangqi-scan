@@ -593,7 +593,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     private fun promptIdentity(title: String, desc: String, red: Boolean, onPick: (Char) -> Unit) {
         // 抽成闭包：点"最小化"后 dismiss，但仍可用浮动按钮重新弹出（保留同一待录入状态）
-        val show: () -> Unit = {
+        var show: () -> Unit = {}
+        show = {
             val view = layoutInflater.inflate(R.layout.dialog_jieqi_identity, null)
             (view.findViewById<TextView>(R.id.jqIdTitle)).text = title
             (view.findViewById<TextView>(R.id.jqIdDesc)).text = desc
@@ -628,7 +629,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             view.findViewById<TextView>(R.id.jqIdMinimize).setOnClickListener {
                 dlg.dismiss()
                 pendingIdentityPrompt = show
-                findViewById<View>(R.id.jqResumeIdentity).apply {
+                findViewById<TextView>(R.id.jqResumeIdentity).apply {
                     text = "待录入揭晓身份 · $title"
                     visibility = View.VISIBLE
                 }
