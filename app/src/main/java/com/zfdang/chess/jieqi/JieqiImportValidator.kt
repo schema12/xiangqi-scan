@@ -207,17 +207,26 @@ object JieqiImportValidator {
         return Validation(issues.isEmpty(), issues, fen)
     }
 
-    /** 供测试使用的注入式加载（从已解析 JSON 字符串），避免单测依赖 Android assets */
-    fun loadFromJson(json: String) {
+    /** 供测试使用的注入式加载（无需 org.json，避免 JVM 单测的 android.jar stub 问题） */
+    data class StartDef(val f: Int, val rank: Int, val role: Char)
+
+    fun loadFromStarts(starts: List<StartDef>) {
         darkRoleRed.clear(); darkRoleBlack.clear()
-        val arr = JSONObject(json).getJSONArray("starts")
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
-            val f = o.getInt("f"); val rank = o.getInt("r")
-            val role = o.getString("role")[0]
-            darkRoleRed[(9 - rank) * 100L + f] = role
-            darkRoleBlack[rank * 100L + f] = role
+        for (s in starts) {
+            darkRoleRed[(9 - s.rank) * 100L + s.f] = s.role
+            darkRoleBlack[s.rank * 100L + s.f] = s.role
         }
         loaded = true
+    }
+
+    /** 供运行时从 JSON 资产加载（保留，供 ensureLoaded 复用解析） */
+    fun loadFromJson(json: String) {
+        val arr = JSONObject(json).getJSONArray("starts")
+        val starts = ArrayList<StartDef>()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            starts += StartDef(o.getInt("f"), o.getInt("r"), o.getString("role")[0])
+        }
+        loadFromStarts(starts)
     }
 }

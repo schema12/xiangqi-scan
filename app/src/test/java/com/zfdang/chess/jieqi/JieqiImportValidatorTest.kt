@@ -19,23 +19,21 @@ import org.junit.Test
  */
 class JieqiImportValidatorTest {
 
-    // 与 assets/jieqi/dark_start_squares.json 内容一致（引擎 starts[]）
-    private val engineStartsJson = """{
-      "starts": [
-        {"f":0,"r":0,"role":"R"},{"f":8,"r":0,"role":"R"},
-        {"f":1,"r":0,"role":"N"},{"f":7,"r":0,"role":"N"},
-        {"f":2,"r":0,"role":"B"},{"f":6,"r":0,"role":"B"},
-        {"f":3,"r":0,"role":"A"},{"f":5,"r":0,"role":"A"},
-        {"f":1,"r":2,"role":"C"},{"f":7,"r":2,"role":"C"},
-        {"f":0,"r":3,"role":"P"},{"f":2,"r":3,"role":"P"},
-        {"f":4,"r":3,"role":"P"},{"f":6,"r":3,"role":"P"},
-        {"f":8,"r":3,"role":"P"}
-      ]
-    }"""
+    // 与 assets/jieqi/dark_start_squares.json 内容一致（引擎 tables.cpp starts[] 的 (f,rank,role)）
+    private val engineStarts = listOf(
+        0 to 0 to 'R', 8 to 0 to 'R',
+        1 to 0 to 'N', 7 to 0 to 'N',
+        2 to 0 to 'B', 6 to 0 to 'B',
+        3 to 0 to 'A', 5 to 0 to 'A',
+        1 to 2 to 'C', 7 to 2 to 'C',
+        0 to 3 to 'P', 2 to 3 to 'P',
+        4 to 3 to 'P', 6 to 3 to 'P',
+        8 to 3 to 'P'
+    ).map { (fr, role) -> JieqiImportValidator.StartDef(fr.first, fr.second, role) }
 
     @Before
     fun setup() {
-        JieqiImportValidator.loadFromJson(engineStartsJson)
+        JieqiImportValidator.loadFromStarts(engineStarts)
     }
 
     private fun emptyGrid(): Array<CharArray> = Array(10) { CharArray(9) { '.' } }

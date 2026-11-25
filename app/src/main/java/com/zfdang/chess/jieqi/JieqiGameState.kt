@@ -196,7 +196,7 @@ class JieqiGameState private constructor(
                         ch.isDigit() -> c += ch - '0'
                         else -> {
                             if (c > 8) return bad("第 ${i + 1} 行棋盘字符超出 9 列")
-                            if (slotOf(ch) < 0 && ch != 'X' && ch != 'x') {
+                            if (slotOf(ch) < 0 && ch != 'X' && ch != 'x' && ch != 'K' && ch != 'k') {
                                 return bad("第 ${i + 1} 行第 ${c + 1} 列含非法棋子 '$ch'")
                             }
                             g[i][c] = ch
