@@ -76,15 +76,15 @@ object JieqiImportValidator {
     }
 
     /**
-     * 按揭棋规则规范化暗子所属方（校对阶段调用，不是识别阶段）。
+     * 按所在初始位确定暗子的所属方（校对阶段调用，不是识别阶段）。
      *
-     * 依据：未翻暗子永远待在开局初始位；引擎初始位按红黑半场严格分离
-     * （红方 row6/7/9，黑方 row0/2/3）。因此位于黑方初始位的暗子只可能是黑暗子，
-     * 位于红方初始位的暗子只可能是红暗子——这是规则确定性推论，不是模型猜测。
-     * 模型对背面颜色判反时，用位置纠正可彻底消除这类非法局面。
+     * 揭棋暗子背面不区分红黑，X/x 只是引擎 FEN 方言编码（大写=红方暗子、小写=黑方暗子）。
+     * 暗子属于哪一方完全由它所在的初始位决定：未翻暗子永远待在开局原位，
+     * 而红黑初始位按半场严格分离（红方 row6/7/9，黑方 row0/2/3），互不重叠。
+     * 因此位置 → 所属方是确定的规则推论，与背面外观、模型输出无关。
      *
-     * 只纠正"位于某方合法初始位、但颜色标成对方"的暗子；位于双方都非初始位的
-     * 暗子不动（留给 [validate] 报错并由用户改明子/空位）。
+     * 本方法把每个暗子的 X/x 按其实际所在初始位重设（若该格是某方合法暗子位）。
+     * 位于双方都非初始位的暗子不动（留给 [validate] 报错并由用户改明子/空位）。
      * @return 被改动的格子索引列表（r*9+c），供 UI 透明提示用户
      */
     fun normalizeDarkSides(grid: Array<CharArray>): List<Int> {
@@ -93,14 +93,17 @@ object JieqiImportValidator {
         for (r in 0 until 10) for (c in 0 until 9) {
             val ch = grid[r][c]
             if (ch != 'X' && ch != 'x') continue
-            val red = ch == 'X'
-            if (isDarkStart(r, c, red)) continue          // 颜色与位置一致，不动
-            if (isDarkStart(r, c, !red)) {
-                grid[r][c] = if (red) 'x' else 'X'        // 位置确定所属方，纠正
+            // 位置唯一确定所属方：在红方初始位 → X；在黑方初始位 → x
+            val correct = if (isDarkStart(r, c, true)) 'X'
+                          else if (isDarkStart(r, c, false)) 'x'
+                          else continue   // 双方都不是初始位：不动，交给 validate 报错
+            if (grid[r][c] != correct) {
+                grid[r][c] = correct
                 changed += r * 9 + c
             }
-            // 双方都不是初始位：不动，交给 validate 报错
         }
+        return changed
+    }
         return changed
     }
 
@@ -213,19 +216,11 @@ object JieqiImportValidator {
                 JieqiRules.isDark(ch) -> {
                     darks[side]++
                     if (!isDarkStart(r, c, red)) {
-                        // 区分两种失败：
-                        //  (a) 该格是「对方」暗子的合法初始位 → 几乎肯定是所属方识别错（红/黑背面判反），
-                        //      应提示改成对方暗子；这是揭棋扫描最常见的错误。
-                        //  (b) 该格双方都不是初始位 → 位置真的错了（模型把明子/空位误判成暗子），
-                        //      应提示改成明子或空位。
-                        val opponentSide = isDarkStart(r, c, !red)
-                        val msg = if (opponentSide) {
-                            "第${r + 1}行第${c + 1}列的${if (red) "红" else "黑"}暗子所属方可能识别反了：" +
-                                "这个位置只可能是${if (red) "黑" else "红"}暗子，请从候选栏选${if (red) "黑暗子" else "红暗子"}重放此格"
-                        } else {
-                            "第${r + 1}行第${c + 1}列的${if (red) "红" else "黑"}暗子不在任何初始暗子位" +
-                                "（未翻暗子只能待在开局原位；请改为明子或清空此格）"
-                        }
+                        // 揭棋暗子背面不区分红黑，所属方完全由所在初始位决定。
+                        // 若该格是对方初始位，normalizeDarkSides 会按位置重设 X/x，
+                        // 能走到这里说明双方初始位都不匹配——即该格根本不该有暗子。
+                        val msg = "第${r + 1}行第${c + 1}列的暗子不在任何合法初始暗子位" +
+                            "（未翻暗子只能待在开局原位；请改为明子或清空此格）"
                         issues += Issue(r * 9 + c, "DARK_OFF_START", msg)
                     }
                 }

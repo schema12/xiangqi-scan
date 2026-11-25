@@ -151,8 +151,9 @@ class JieqiImportValidatorTest {
     }
 
     @Test
-    fun `dark side is normalized by position when model misreads back color`() {
-        // 扫描图里模型把两个黑暗子判成了红暗子 X（背面颜色判反），但位置在黑方初始位
+    fun `dark side is determined solely by start square position`() {
+        // 暗子背面无红黑，X/x 只是引擎 FEN 编码；2 个暗子虽被标成 X，
+        // 但位置在黑方初始位，按规则其归属必为黑（小写 x）
         val g = legalMidgame()
         g[0][0] = 'X'   // 黑车初始位(row0,c0)却标成红暗子 → 应为 x
         g[3][6] = 'X'   // 黑炮初始位(row3,c6)却标成红暗子 → 应为 x

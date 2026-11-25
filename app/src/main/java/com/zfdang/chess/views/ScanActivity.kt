@@ -377,8 +377,8 @@ class ScanActivity : AppCompatActivity() {
     /** 揭棋模式开局：结构化校验 → 引擎方言 FEN → JieqiActivity（失败则留在校对页并能定位修正） */
     private fun startJieqiGame(redFirst: Boolean, redHuman: Boolean, blackHuman: Boolean) {
         com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
-        // 校对阶段规则化：未翻暗子必在初始位，初始位按红黑半场分离 → 所属方由位置确定。
-        // 模型对背面颜色判反时按位置纠正（透明告知用户），避免"红暗子落在黑方位"的非法局面。
+        // 校对阶段按位置确定暗子所属方（背面无红黑，X/x 只是引擎编码，由所在初始位唯一决定）。
+        // 这不是识别阶段改类别：暗子状态由模型判定，红黑归属纯由揭棋规则的位置推出。
         val normalized = com.zfdang.chess.jieqi.JieqiImportValidator.normalizeDarkSides(grid)
         val result = com.zfdang.chess.jieqi.JieqiImportValidator.validate(grid, redFirst)
         if (normalized.isNotEmpty()) {
@@ -399,7 +399,7 @@ class ScanActivity : AppCompatActivity() {
         board.errorCells = emptySet()
         if (normalized.isNotEmpty()) {
             Toast.makeText(this,
-                "已按揭棋规则纠正 ${normalized.size} 个暗子的红黑归属（由所在初始位确定）",
+                "已按所在初始位确定 ${normalized.size} 个暗子的归属（暗子背面无红黑，位置即所属方）",
                 Toast.LENGTH_LONG).show()
         }
         val importFen = result.fen
