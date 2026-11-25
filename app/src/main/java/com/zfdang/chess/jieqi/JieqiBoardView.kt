@@ -52,6 +52,10 @@ class JieqiBoardView @JvmOverloads constructor(
     var hint = -1
         set(value) { field = value; invalidate() }
 
+    /** 待录入揭晓身份的暗子格（琥珀色粗圈），-1 无。扫描局 AI/人走暗子时高亮，便于对照原棋盘 */
+    var revealCell = -1
+        set(value) { field = value; invalidate() }
+
     var onCellTap: ((row: Int, col: Int) -> Unit)? = null
 
     private val boardBmp: Bitmap = BitmapFactory.decodeResource(resources, com.zfdang.chess.R.drawable.chessboard)
@@ -123,6 +127,17 @@ class JieqiBoardView @JvmOverloads constructor(
         hint.takeIf { it >= 0 }?.let { h ->
             val r = h / 9; val c = h % 9
             canvas.drawCircle(cellX(vCol(c)), cellY(vRow(r)), pieceSize * 0.62f, hintPaint)
+        }
+        // 待录入揭晓身份的暗子：琥珀色粗圆环 + 中心小点，醒目提示"电脑/你动的是这个暗子"
+        revealCell.takeIf { it >= 0 }?.let { rc ->
+            val r = rc / 9; val c = rc % 9
+            val cx = cellX(vCol(c)); val cy = cellY(vRow(r))
+            val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE; strokeWidth = 9f; color = 0xFFF2A33C.toInt()
+            }
+            canvas.drawCircle(cx, cy, pieceSize * 0.74f, rp)
+            val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xFFF2A33C.toInt() }
+            canvas.drawCircle(cx, cy, pieceSize * 0.12f, dot)
         }
     }
 

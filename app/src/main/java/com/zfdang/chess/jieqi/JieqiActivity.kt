@@ -29,6 +29,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     companion object {
         const val EXTRA_IMPORT_FEN = "jqImportFen"       // 揭棋方言 FEN（扫描/导入回传）
+        const val EXTRA_CAPTURES = "jqCaptures"           // 可选吃子补充："红明子,红暗数;黑明子,黑暗数"
         const val EXTRA_SCAN_GRID = "jqScanGrid"         // 失败回传：校对后的棋盘
         const val EXTRA_SCAN_FEN = "jqScanFen"           // 失败回传：校对页展示的 FEN
         const val EXTRA_RESTORE_GRID = "jqRestoreGrid"
@@ -64,6 +65,9 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     private var pendingMove: PendingMove? = null
     private var hintPending = false
 
+    /** 身份录入弹窗最小化后，保存"重新弹出"的闭包；浮动按钮点击时调用 */
+    private var pendingIdentityPrompt: (() -> Unit)? = null
+
     /** 终局提示：绝杀/将死。由引擎 mate 分数或 App 无合法走法判定。 */
     private var gameOver = false
     private var gameOverReason = ""
@@ -91,6 +95,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         capturedBottom = findViewById(R.id.jqCapturedBottom)
 
         board.onCellTap = { r, c -> onCellTap(r, c) }
+        findViewById<View>(R.id.jqResumeIdentity).setOnClickListener { resumeIdentityPrompt() }
         findViewById<View>(R.id.jqNewbt).setOnClickListener { showNewGameDialog() }
         findViewById<View>(R.id.jqFlipbt).setOnClickListener {
             board.viewFlipped = !board.viewFlipped
@@ -154,6 +159,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
                 } else {
                     val (grid, redToMove, pools) = JieqiGameState.derivePools(parsed.value!!.first, parsed.value!!.second)
                     state = JieqiGameState.fromImported(grid, redToMove, pools)
+                    applyCapturesSpec(intent.getStringExtra(EXTRA_CAPTURES))
                     redIsHuman = intent.getBooleanExtra(EXTRA_RED_HUMAN, true)
                     blackIsHuman = intent.getBooleanExtra(EXTRA_BLACK_HUMAN, false)
                     finishBoardSetup()
@@ -182,6 +188,22 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     // 对局生命周期
     // ------------------------------------------------------------------
 
+    /** 未知新局：标准开局摆法，但 App 不知道暗子身份，走暗子/吃暗子均需人工录入（等同扫描新局） */
+    private fun newGameUnknown(redHuman: Boolean, blackHuman: Boolean, redFirst: Boolean) {
+        state = JieqiGameState.newGameUnknown(redToMove = redFirst)
+        redIsHuman = redHuman
+        blackIsHuman = blackHuman
+        undoStack.clear()
+        thinking = false
+        gameOver = false
+        gameOverReason = ""
+        finishBoardSetup()
+        client?.send("ucinewgame")
+        syncEngine()
+        maybeEngineForward()
+        toast("未知新局：暗子身份由你揭晓（等同扫描标准新局）")
+    }
+
     private fun newGame(redHuman: Boolean, blackHuman: Boolean, redFirst: Boolean) {
         state = JieqiGameState.newGame(java.util.Random(), redToMove = redFirst)
         redIsHuman = redHuman
@@ -201,6 +223,9 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         board.selected = -1
         board.lastMove = null
         board.hint = -1
+        board.revealCell = -1
+        pendingIdentityPrompt = null
+        findViewById<View>(R.id.jqResumeIdentity).visibility = View.GONE
         opponentLabel.text = when {
             redIsHuman && !blackIsHuman -> "你执红 · 电脑执黑"
             !redIsHuman && blackIsHuman -> "电脑执红 · 你执黑"
@@ -339,6 +364,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         board.selected = -1
         if (needReveal || needVictim) {
             pendingMove = PendingMove(fr, fc, tr, tc, needReveal, needVictim)
+            // 高亮待录入的暗子（移动暗子→目标格；只吃暗子→被吃格），便于对照原棋盘
+            board.revealCell = tr * 9 + tc
             if (needReveal) promptIdentity(
                 "请选择揭晓身份", "对照原棋盘：该暗子翻出的棋子", state.redToMove) { ch ->
                 pendingMove?.reveal = ch
@@ -360,6 +387,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     private fun commitPendingMove(victim: Char) {
         val pm = pendingMove ?: return
         pendingMove = null
+        board.revealCell = -1
+        findViewById<View>(R.id.jqResumeIdentity).visibility = View.GONE
         commitMove(pm.fr, pm.fc, pm.tr, pm.tc, pm.reveal, victim)
     }
 
@@ -503,6 +532,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         val needVictim = capturedDark && state.assignment == null
         if (needReveal || needVictim) {
             pendingMove = PendingMove(gr, gc, gtr, gtc, needReveal, needVictim)
+            // 高亮电脑动的那个暗子（落子目标格，即暗子翻明后的位置）
+            board.revealCell = gtr * 9 + gtc
             val moverRed = JieqiRules.isRed(mover)
             if (needReveal) promptIdentity(
                 "电脑动了暗子：请录入揭晓身份",
@@ -529,32 +560,88 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         updateStatus()
     }
 
+    /** 解析可选的吃子补充："红明子,红暗数;黑明子,黑暗数"。
+     *  明子按 FEN 字母原样加入 captured[eater]（wasHidden=false）；
+     *  暗子数用 X/x 背面加入（wasHidden=true，身份未知）。 */
+    private fun applyCapturesSpec(spec: String?) {
+        if (spec.isNullOrBlank()) return
+        try {
+            val groups = spec.split(";")
+            if (groups.size != 2) return
+            for (side in 0..1) {
+                val parts = groups[side].split(",")
+                if (parts.size != 2) continue
+                val letters = parts[0].trim()
+                val darkCount = parts[1].trim().toIntOrNull() ?: 0
+                val expectedCase = if (side == 0) Char::isUpperCase else Char::isLowerCase
+                for (ch in letters) {
+                    if (ch in "Kk" || JieqiRules.isDark(ch)) continue
+                    if (!expectedCase(ch)) continue
+                    state.captured[side].add(CapturedPiece(ch, false))
+                }
+                val darkChar = if (side == 0) 'X' else 'x'
+                repeat(darkCount.coerceAtLeast(0).coerceAtMost(16)) {
+                    state.captured[side].add(CapturedPiece(darkChar, true))
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     // ------------------------------------------------------------------
     // 身份录入对话框
     // ------------------------------------------------------------------
 
     private fun promptIdentity(title: String, desc: String, red: Boolean, onPick: (Char) -> Unit) {
-        val view = layoutInflater.inflate(R.layout.dialog_jieqi_identity, null)
-        (view.findViewById<TextView>(R.id.jqIdTitle)).text = title
-        (view.findViewById<TextView>(R.id.jqIdDesc)).text = desc
-        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setBackground(
-                androidx.appcompat.content.res.AppCompatResources.getDrawable(
-                    this, R.drawable.ui_dialog_background))
-            .setView(view)
-            .setCancelable(false)
-            .create()
-        val letters = mapOf(
-            R.id.jqIdR to 'R', R.id.jqIdN to 'N', R.id.jqIdB to 'B',
-            R.id.jqIdA to 'A', R.id.jqIdC to 'C', R.id.jqIdP to 'P')
-        val names = mapOf('R' to "车", 'N' to "马", 'B' to "相/象", 'A' to "仕/士", 'C' to "炮", 'P' to "兵/卒")
-        val color = if (red) resources.getColor(R.color.ui_red) else resources.getColor(R.color.ui_ink)
-        for ((id, ch) in letters) {
-            val tv = view.findViewById<TextView>(id)
-            tv.setTextColor(color)
-            tv.setOnClickListener { dlg.dismiss(); onPick(ch) }
+        // 抽成闭包：点"最小化"后 dismiss，但仍可用浮动按钮重新弹出（保留同一待录入状态）
+        val show: () -> Unit = {
+            val view = layoutInflater.inflate(R.layout.dialog_jieqi_identity, null)
+            (view.findViewById<TextView>(R.id.jqIdTitle)).text = title
+            (view.findViewById<TextView>(R.id.jqIdDesc)).text = desc
+            val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setBackground(
+                    androidx.appcompat.content.res.AppCompatResources.getDrawable(
+                        this, R.drawable.ui_dialog_background))
+                .setView(view)
+                .setCancelable(false)
+                .create()
+            // 引擎方言要求揭晓身份字母大小写与行棋方一致：红方大写、黑方小写。
+            val letters = mapOf(
+                R.id.jqIdR to 'R', R.id.jqIdN to 'N', R.id.jqIdB to 'B',
+                R.id.jqIdA to 'A', R.id.jqIdC to 'C', R.id.jqIdP to 'P')
+            val names = if (red) {
+                mapOf('R' to "车", 'N' to "马", 'B' to "相", 'A' to "仕", 'C' to "炮", 'P' to "兵")
+            } else {
+                mapOf('R' to "车", 'N' to "马", 'B' to "象", 'A' to "士", 'C' to "炮", 'P' to "卒")
+            }
+            val color = if (red) resources.getColor(R.color.ui_red) else resources.getColor(R.color.ui_ink)
+            for ((id, ch) in letters) {
+                val tv = view.findViewById<TextView>(id)
+                tv.text = names[ch]
+                tv.setTextColor(color)
+                tv.setOnClickListener {
+                    dlg.dismiss()
+                    pendingIdentityPrompt = null
+                    findViewById<View>(R.id.jqResumeIdentity).visibility = View.GONE
+                    onPick(if (red) ch else ch.lowercaseChar())
+                }
+            }
+            view.findViewById<TextView>(R.id.jqIdMinimize).setOnClickListener {
+                dlg.dismiss()
+                pendingIdentityPrompt = show
+                findViewById<View>(R.id.jqResumeIdentity).apply {
+                    text = "待录入揭晓身份 · $title"
+                    visibility = View.VISIBLE
+                }
+            }
+            dlg.show()
         }
-        dlg.show()
+        pendingIdentityPrompt = show
+        show()
+    }
+
+    /** 最小化后点击浮动按钮重新弹出身份录入 */
+    private fun resumeIdentityPrompt() {
+        pendingIdentityPrompt?.invoke()
     }
 
     // ------------------------------------------------------------------
@@ -588,11 +675,22 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     }
 
     private fun showNewGameDialog() {
-        GameSetupDialog(this,
-            redFirstInit = true, redHumanInit = true, blackHumanInit = false
-        ) { redFirst, redHuman, blackHuman ->
-            newGame(redHuman, blackHuman, redFirst)
-        }.show()
+        // 新局两种：标准（App 秘密分配、自动揭晓）/ 未知（所有暗子由用户揭晓，等同扫描新局）
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setBackground(
+                androidx.appcompat.content.res.AppCompatResources.getDrawable(
+                    this, R.drawable.ui_dialog_background))
+            .setTitle("选择新局类型")
+            .setItems(arrayOf("标准新局（自动揭晓）", "未知新局（暗子由我揭晓）")) { _, which ->
+                GameSetupDialog(this,
+                    redFirstInit = true, redHumanInit = true, blackHumanInit = false
+                ) { redFirst, redHuman, blackHuman ->
+                    if (which == 0) newGame(redHuman, blackHuman, redFirst)
+                    else newGameUnknown(redHuman, blackHuman, redFirst)
+                }.show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun showSetupDialog() {

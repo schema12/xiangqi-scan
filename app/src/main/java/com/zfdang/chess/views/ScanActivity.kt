@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -46,6 +47,9 @@ class ScanActivity : AppCompatActivity() {
     private var sourceBmp: Bitmap? = null
     /** 揭棋模式：编辑器可摆暗子，校准完成后进入揭棋对弈 */
     private var jieqiMode = false
+
+    /** 可选补充的吃子记录："红明子字母,红暗子数;黑明子字母,黑暗子数"，空=不补充 */
+    private var capturesSpec: String = ""
 
     /** 揭棋固定候选栏：当前选中的待摆棋子（null=无），及候选视图引用 */
     private var palettePiece: Char? = null
@@ -90,6 +94,8 @@ class ScanActivity : AppCompatActivity() {
             paletteBlack = findViewById(R.id.paletteBlack)
             jieqiPalette.visibility = View.VISIBLE
             buildJieqiPalette()
+            findViewById<View>(R.id.btnCaptures).visibility = View.VISIBLE
+            findViewById<View>(R.id.btnCaptures).setOnClickListener { showCapturesEditor() }
         }
 
         // 引擎拒绝后回传：恢复校对棋盘/FEN（不重新识别，不丢人工修改），并高亮问题格
@@ -179,6 +185,24 @@ class ScanActivity : AppCompatActivity() {
         if (r.warnings.isNotEmpty()) {
             Toast.makeText(this, "注意: ${r.warnings.joinToString("；")}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    /** 可选：手动补充扫描前已被吃掉的棋子（校对页填，不影响识别；用于吃子区显示）。
+     *  明子用 FEN 字母填写（如 "RNPB"），暗子填数字。两组用分号分隔，顺序：红;黑。 */
+    private fun showCapturesEditor() {
+        val et = EditText(this)
+        et.hint = "红明子,红暗数;黑明子,黑暗数  例：RB,2;np,1"
+        et.setText(capturesSpec)
+        et.setSingleLine(true)
+        et.textSize = 14f
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("补充吃子记录（可选）")
+            .setMessage("扫描前的历史吃子无法从图片得知。可在此补充，让对弈页吃子区正确显示。
+留空则不补充。")
+            .setView(et)
+            .setPositiveButton("保存") { _, _ -> capturesSpec = et.text.toString().trim() }
+            .setNegativeButton("清空") { _, _ -> capturesSpec = "" }
+            .show()
     }
 
     // ---- 揭棋固定候选栏（仅揭棋模式）----
@@ -412,6 +436,7 @@ class ScanActivity : AppCompatActivity() {
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_SCAN_GRID,
                 grid.joinToString("/") { it.joinToString("") })
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_SCAN_FEN, fen)
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_CAPTURES, capturesSpec)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         startActivity(i)

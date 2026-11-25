@@ -114,6 +114,21 @@
                     android:text="@string/rec_start_game"
                     android:textColor="@color/ui_purple" android:textSize="14sp"/>
             </LinearLayout>
+
+            <!-- 揭棋模式专用：可选补充双方吃子记录 -->
+            <LinearLayout android:id="@+id/btnCaptures"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:visibility="gone"
+                android:orientation="vertical" android:gravity="center">
+                <ImageView
+                    android:layout_width="26dp" android:layout_height="26dp"
+                    android:src="@drawable/ic_settings"
+                    android:contentDescription="补充吃子"/>
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="补充吃子" android:textColor="@color/ui_ink" android:textSize="14sp"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

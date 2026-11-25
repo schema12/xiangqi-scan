@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/ui_paper">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical">
 
     <!-- 标题栏 -->
     <LinearLayout
@@ -126,4 +128,17 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
+
+    <!-- 身份录入弹窗最小化后：浮动"继续录入"按钮（覆盖在内容之上，不遮挡棋盘视野） -->
+    <TextView android:id="@+id/jqResumeIdentity"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        android:background="@drawable/bg_card_white"
+        android:paddingHorizontal="20dp" android:paddingVertical="12dp"
+        android:text="待录入揭晓身份 · 点此继续"
+        android:textColor="@color/ui_purple" android:textSize="15sp" android:textStyle="bold"
+        android:elevation="8dp"/>
 </LinearLayout>
+</FrameLayout>

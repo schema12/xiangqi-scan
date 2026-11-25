@@ -31,4 +31,11 @@
         <TextView android:id="@+id/jqIdC" style="@style/JqIdBtn" android:text="炮"/>
         <TextView android:id="@+id/jqIdP" style="@style/JqIdBtn" android:text="兵"/>
     </LinearLayout>
+
+    <TextView android:id="@+id/jqIdMinimize"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="14dp" android:gravity="center"
+        android:paddingVertical="8dp"
+        android:text="最小化（稍后再录，棋盘高亮暗子）"
+        android:textColor="@color/ui_muted" android:textSize="13sp"/>
 </LinearLayout>

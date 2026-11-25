@@ -86,6 +86,18 @@ class JieqiGameState private constructor(
             return state
         }
 
+        /** 未知新局：标准开局摆法，但 App 不持有暗子真实身份（等同扫描进来的标准新局）。
+         *  所有暗子移动/被吃都需按扫描模式人工录入身份；引擎仍从标准揭棋初始局面开始。 */
+        fun newGameUnknown(redToMove: Boolean = true): JieqiGameState {
+            val grid = startGrid()
+            val pools = fullPools()
+            return JieqiGameState(
+                grid, redToMove, pools, null,
+                fenOf(grid, redToMove, pools), mutableListOf(), redToMove,
+                intArrayOf(0, 0), mutableListOf()
+            )
+        }
+
         /** 扫描导入：以编辑后的 grid 建立不完整信息局面（无真实分配，池可后校）。 */
         fun fromImported(grid: Array<CharArray>, redToMove: Boolean, pools: Array<IntArray>): JieqiGameState =
             JieqiGameState(

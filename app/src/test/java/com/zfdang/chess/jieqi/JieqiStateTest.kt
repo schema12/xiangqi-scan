@@ -429,4 +429,25 @@ class JieqiStateTest {
         assertNotNull(fen)
         assertNull("河中心的暗子应被 parseFen 拒绝", JieqiGameState.parseFen(fen!!))
     }
+
+    @Test
+    fun `unknown new game has no secret assignment but full start grid and pools`() {
+        val s = JieqiGameState.newGameUnknown(redToMove = true)
+        assertNull("未知新局不能有秘密身份分配", s.assignment)
+        assertEquals(15, s.darkCount(true))
+        assertEquals(15, s.darkCount(false))
+        assertEquals(15, s.poolTotal(true))
+        assertEquals(15, s.poolTotal(false))
+        assertTrue(s.redToMove)
+        // 与标准新局棋盘相同（暗子都在初始位）
+        val std = JieqiGameState.newGame(java.util.Random(7))
+        for (r in 0 until 10) for (c in 0 until 9)
+            assertEquals(std.grid[r][c], s.grid[r][c])
+        // 与扫描导入一样：移动暗子必须人工录入揭晓身份
+        // 找一个红暗兵 row6 col0，尝试向前走到 row5 col0
+        val before = s.darkCount(true)
+        val err = s.applyMove(6, 0, 5, 0, '.', '.', trustEngine = false)
+        assertEquals("缺少揭晓身份", err)
+        assertEquals(before, s.darkCount(true))
+    }
 }
