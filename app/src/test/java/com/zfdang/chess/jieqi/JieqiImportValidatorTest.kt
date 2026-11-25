@@ -149,4 +149,23 @@ class JieqiImportValidatorTest {
         // 引擎方言解析器（App 侧对齐）必须接受该池
         assertNull(JieqiGameState.parseFenWithError(r.fen!!).error)
     }
+
+    @Test
+    fun `dark side is normalized by position when model misreads back color`() {
+        // 扫描图里模型把两个黑暗子判成了红暗子 X（背面颜色判反），但位置在黑方初始位
+        val g = legalMidgame()
+        g[0][0] = 'X'   // 黑车初始位(row0,c0)却标成红暗子 → 应为 x
+        g[3][6] = 'X'   // 黑炮初始位(row3,c6)却标成红暗子 → 应为 x
+        val before = JieqiImportValidator.validate(g, true)
+        assertFalse("纠正前应被拦截", before.ok)
+        val changed = JieqiImportValidator.normalizeDarkSides(g)
+        assertEquals(2, changed.size)
+        assertEquals('x', g[0][0])
+        assertEquals('x', g[3][6])
+        val after = JieqiImportValidator.validate(g, true)
+        assertTrue("按位置纠正后应可导入：${after.issues}", after.ok)
+        assertNull(JieqiGameState.parseFenWithError(after.fen!!).error)
+        // 幂等：再纠正一次不应再改动
+        assertTrue(JieqiImportValidator.normalizeDarkSides(g).isEmpty())
+    }
 }
