@@ -393,17 +393,18 @@ class JieqiStateTest {
         // 识别把 1 个红车摆在盘面：14 暗子+帅+车=16（不超引擎每方16子上限）。
         // 池推导后 池总数 < 暗子数，derivePools 必须在 URN_INIT 内钳制补足。
         // 注意：暗子只能摆在暗子角色位（王位 e9 无暗子身份，不可摆暗子）。
+        // 红方：14 暗子（全部合法初始位）+ 帅 + 1 明车 = 16 子；黑方仅 1 将。
         val rows = listOf(
-            "xxxxkxxxx",
-            ".........",
-            ".C.....C.",
-            "x.x.x.x.x",
+            "....k....",
             ".........",
             ".........",
-            "X.X.X.X.X",
-            ".X.....X.",
-            "....R....",   // 1 个"红车"摆在非暗子位（e8）
-            "XXXK.XXXX"
+            ".........",
+            ".........",
+            ".........",
+            "X.X.X.X.X",   // 5 红暗兵位
+            ".X.....X.",   // 2 红暗炮位
+            "....R....",   // 1 个红明车（池亏空来源）
+            "XXXK.XXXX"    // 7 红暗（4车马相仕位+帅两侧）
         )
         val grid = Array(10) { r -> rows[r].toCharArray() }
         val fen = JieqiGameState.buildImportFen(grid, redFirst = true)
