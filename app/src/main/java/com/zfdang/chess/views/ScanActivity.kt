@@ -197,8 +197,7 @@ class ScanActivity : AppCompatActivity() {
         et.textSize = 14f
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("补充吃子记录（可选）")
-            .setMessage("扫描前的历史吃子无法从图片得知。可在此补充，让对弈页吃子区正确显示。
-留空则不补充。")
+            .setMessage("扫描前的历史吃子无法从图片得知。可在此补充，让对弈页吃子区正确显示。\n留空则不补充。")
             .setView(et)
             .setPositiveButton("保存") { _, _ -> capturesSpec = et.text.toString().trim() }
             .setNegativeButton("清空") { _, _ -> capturesSpec = "" }
