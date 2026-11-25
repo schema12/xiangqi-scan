@@ -104,8 +104,6 @@ object JieqiImportValidator {
         }
         return changed
     }
-        return changed
-    }
 
     private fun ensureLoadedInternal() {
         // ensureLoaded 需要 Context；此处若尚未加载，用 JieqiRules 兜底（两者坐标一致）
