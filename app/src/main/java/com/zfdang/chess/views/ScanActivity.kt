@@ -191,34 +191,15 @@ class ScanActivity : AppCompatActivity() {
 
     /** 棋子可摆放位置校验：违反规则返回错误提示（null=可摆放） */
     private fun placementError(ch: Char, r: Int, c: Int): String? {
-        val name = pieceName(ch)
-        val red = ch.isUpperCase()
-        val lower = ch.lowercaseChar()
         if (ch == 'X' || ch == 'x') {
-            // 暗子只能摆在有初始角色意义的暗子位（引擎方言约束，与 buildImportFen 校验一致）
+            // 揭棋引擎方言约束：未翻暗子只能待在初始暗子位（翻明后才会按角色移动），
+            // 这是揭棋专有的必要限制，不是普通象棋遗留，必须保留。
             val ok = com.zfdang.chess.jieqi.JieqiRules.darkRole(r, c, ch == 'X') != '.'
             return if (ok) null else "暗子只能摆在双方初始兵/炮/车/马/士/象位"
         }
-        return when (lower) {
-            // 将/帅、士/仕：只能在己方九宫（列 3..5；红行 7..9，黑行 0..2）
-            'k', 'a' -> {
-                val okC = c in 3..5
-                val okR = if (red) r >= 7 else r <= 2
-                if (!okC || !okR) "${name}不能摆在这里" else null
-            }
-            // 相/象：不能过河（红行>=5，黑行<=4）
-            'b' -> {
-                val ok = if (red) r >= 5 else r <= 4
-                if (!ok) "${name}不能摆在这里" else null
-            }
-            // 兵/卒：不能摆在己方底线之前（红不能在行 0..2 即对方九宫底线? 放宽：不能退到底线之后）
-            // 按标准：兵卒未过河不能后退，但摆棋允许自由摆；仅禁止出现在对方底线行
-            'p' -> {
-                val ok = if (red) r >= 1 else r <= 8
-                if (!ok) "${name}不能摆在这里" else null
-            }
-            else -> null
-        }
+        // 揭棋：明子（含士/象/兵卒）翻明后可按角色走到棋盘任意合法格，
+        // 校对摆谱必须允许放在任何格，不能套用普通象棋的九宫/不过河/底线限制。
+        return null
     }
 
     private fun pieceName(ch: Char): String = when (ch) {
