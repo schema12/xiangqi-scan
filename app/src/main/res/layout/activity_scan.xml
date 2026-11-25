@@ -13,6 +13,26 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
+        <!-- 揭棋模式专用：固定候选棋子栏（红/黑两排，每样一个），紧贴棋盘下方；普通模式隐藏 -->
+        <LinearLayout
+            android:id="@+id/jieqiPalette"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginHorizontal="10dp" android:layout_marginTop="2dp"
+            android:background="@drawable/bg_card_white"
+            android:paddingHorizontal="4dp" android:paddingVertical="6dp">
+
+            <LinearLayout android:id="@+id/paletteRed"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center" />
+
+            <LinearLayout android:id="@+id/paletteBlack"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
         <!-- 校准结果卡片：FEN（等宽两行）+ 置信度，紧贴棋盘底部 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"

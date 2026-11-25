@@ -1,0 +1,14 @@
+{
+  "source": "AB-JChess abjchess/src/tables.cpp init_tables() starts[] (commit e5249e8, 2026-10-31)",
+  "note": "Face-down piece start squares — the authoritative definition used by the engine's set_fen_impl: `if (t == DARK && T.darkRole[c][s] == NO_TYPE) fail('face-down piece off its start point')`. Coordinates are engine (file, rank), rank 0 = RED back rank. App row = 9 - rank for RED, = rank for BLACK (see JieqiRules). Keep in sync with the engine; do NOT maintain a second hardcoded table.",
+  "starts": [
+    {"f": 0, "r": 0, "role": "R"}, {"f": 8, "r": 0, "role": "R"},
+    {"f": 1, "r": 0, "role": "N"}, {"f": 7, "r": 0, "role": "N"},
+    {"f": 2, "r": 0, "role": "B"}, {"f": 6, "r": 0, "role": "B"},
+    {"f": 3, "r": 0, "role": "A"}, {"f": 5, "r": 0, "role": "A"},
+    {"f": 1, "r": 2, "role": "C"}, {"f": 7, "r": 2, "role": "C"},
+    {"f": 0, "r": 3, "role": "P"}, {"f": 2, "r": 3, "role": "P"},
+    {"f": 4, "r": 3, "role": "P"}, {"f": 6, "r": 3, "role": "P"},
+    {"f": 8, "r": 3, "role": "P"}
+  ]
+}

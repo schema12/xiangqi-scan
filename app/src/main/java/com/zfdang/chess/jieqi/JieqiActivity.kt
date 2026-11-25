@@ -29,6 +29,11 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     companion object {
         const val EXTRA_IMPORT_FEN = "jqImportFen"       // 揭棋方言 FEN（扫描/导入回传）
+        const val EXTRA_SCAN_GRID = "jqScanGrid"         // 失败回传：校对后的棋盘
+        const val EXTRA_SCAN_FEN = "jqScanFen"           // 失败回传：校对页展示的 FEN
+        const val EXTRA_RESTORE_GRID = "jqRestoreGrid"
+        const val EXTRA_RESTORE_FEN = "jqRestoreFen"
+        const val EXTRA_RESTORE_REASON = "jqRestoreReason"
         const val EXTRA_RED_HUMAN = "redHuman"
         const val EXTRA_BLACK_HUMAN = "blackHuman"
         const val EXTRA_RED_FIRST = "redFirst"
@@ -109,12 +114,45 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         val restored = loadSaved()
         when {
             importFen != null -> {
-                val parsed = JieqiGameState.parseFen(importFen)
-                if (parsed == null) {
-                    Toast.makeText(this, "揭棋局面无效，已开新局", Toast.LENGTH_LONG).show()
-                    newGame(redHuman = true, blackHuman = false, redFirst = true)
+                val parsed = JieqiGameState.parseFenWithError(importFen)
+                if (parsed.value == null) {
+                    // 导入失败：绝不自动开新局。显示引擎可读原因，并把校对结果回传 ScanActivity
+                    val reason = parsed.error ?: "未知原因"
+                    val scanGrid = intent.getStringExtra(EXTRA_SCAN_GRID)
+                    val scanFen = intent.getStringExtra(EXTRA_SCAN_FEN)
+                    if (scanGrid != null && scanFen != null) {
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("引擎拒绝该局面")
+                            .setMessage("原因：$reason\n\nFEN：$importFen\n\n将返回校对页，你的棋盘与修改都会保留，请修正后重试。")
+                            .setPositiveButton("返回校对") { _, _ ->
+                                val back = android.content.Intent(this,
+                                    com.zfdang.chess.views.ScanActivity::class.java).apply {
+                                    putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_PATH,
+                                        intent.getStringExtra(com.zfdang.chess.views.ScanActivity.EXTRA_PATH))
+                                    putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_URI,
+                                        intent.getStringExtra(com.zfdang.chess.views.ScanActivity.EXTRA_URI))
+                                    putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_JIEQI, true)
+                                    putExtra(EXTRA_RESTORE_GRID, scanGrid)
+                                    putExtra(EXTRA_RESTORE_FEN, scanFen)
+                                    putExtra(EXTRA_RESTORE_REASON, reason)
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                }
+                                startActivity(back)
+                                finish()
+                            }
+                            .setCancelable(false)
+                            .show()
+                    } else {
+                        // 没有可回传的校对状态（例如外部直接以 FEN 启动）：保留在页内提示，不开新局
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("引擎拒绝该局面")
+                            .setMessage("原因：$reason\n\nFEN：$importFen")
+                            .setPositiveButton("知道了", null)
+                            .setCancelable(false)
+                            .show()
+                    }
                 } else {
-                    val (grid, redToMove, pools) = JieqiGameState.derivePools(parsed.first, parsed.second)
+                    val (grid, redToMove, pools) = JieqiGameState.derivePools(parsed.value!!.first, parsed.value!!.second)
                     state = JieqiGameState.fromImported(grid, redToMove, pools)
                     redIsHuman = intent.getBooleanExtra(EXTRA_RED_HUMAN, true)
                     blackIsHuman = intent.getBooleanExtra(EXTRA_BLACK_HUMAN, false)

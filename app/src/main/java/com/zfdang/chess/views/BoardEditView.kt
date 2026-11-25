@@ -74,6 +74,10 @@ class BoardEditView @JvmOverloads constructor(
     var uncertainCells: Set<Int> = emptySet()
         set(value) { field = value; invalidate() }
 
+    /** 导入校验失败格：整格红色半透明高亮 + 红边框，提示用户修正 */
+    var errorCells: Set<Int> = emptySet()
+        set(value) { field = value; invalidate() }
+
     /** 悬浮窗：显示的棋子（按剩余数量动态计算） */
     var popupPieces: List<Char> = emptyList()
         private set
@@ -148,6 +152,22 @@ class BoardEditView @JvmOverloads constructor(
         pieceSize = BOARD_PIECE_SIZE * s
         canvas.drawBitmap(boardBmp, null,
             Rect(0, top.toInt(), width, (top + BOARD_HEIGHT * s).toInt()), paint)
+
+        // 导入校验失败格：整格红色半透明底 + 红边框（在棋子下方绘制，棋子仍可见可点）
+        if (errorCells.isNotEmpty()) {
+            val half = BOARD_GRID_INTERVAL * s / 2f
+            val errFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55E23B24.toInt() }
+            val errStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE; color = 0xFFE23B24.toInt(); strokeWidth = 4f * s
+            }
+            for (idx in errorCells) {
+                val r = idx / 9; val c = idx % 9
+                val cx = cellX(vCol(c)); val cy = cellY(vRow(r))
+                val rect = RectF(cx - half, cy - half, cx + half, cy + half)
+                canvas.drawRect(rect, errFill)
+                canvas.drawRect(rect, errStroke)
+            }
+        }
 
         for (r in 0 until 10) for (c in 0 until 9) {
             val ch = grid[r][c]

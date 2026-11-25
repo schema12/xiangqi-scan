@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -46,6 +47,13 @@ class ScanActivity : AppCompatActivity() {
     /** 揭棋模式：编辑器可摆暗子，校准完成后进入揭棋对弈 */
     private var jieqiMode = false
 
+    /** 揭棋固定候选栏：当前选中的待摆棋子（null=无），及候选视图引用 */
+    private var palettePiece: Char? = null
+    private lateinit var jieqiPalette: View
+    private lateinit var paletteRed: LinearLayout
+    private lateinit var paletteBlack: LinearLayout
+    private val paletteViews = HashMap<Char, View>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan)
@@ -76,6 +84,36 @@ class ScanActivity : AppCompatActivity() {
         }
 
         jieqiMode = intent.getBooleanExtra(EXTRA_JIEQI, false)
+        if (jieqiMode) {
+            jieqiPalette = findViewById(R.id.jieqiPalette)
+            paletteRed = findViewById(R.id.paletteRed)
+            paletteBlack = findViewById(R.id.paletteBlack)
+            jieqiPalette.visibility = View.VISIBLE
+            buildJieqiPalette()
+        }
+
+        // 引擎拒绝后回传：恢复校对棋盘/FEN（不重新识别，不丢人工修改），并高亮问题格
+        val restoreGrid = intent.getStringExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RESTORE_GRID)
+        val restoreFen = intent.getStringExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RESTORE_FEN)
+        if (restoreGrid != null && restoreFen != null) {
+            try {
+                val rows = restoreGrid.split("/")
+                if (rows.size == 10 && rows.all { it.length == 9 }) {
+                    grid = Array(10) { r -> rows[r].toCharArray() }
+                    fen = restoreFen
+                    board.grid = grid
+                    tvFen.text = fen
+                    tvConf.text = "已恢复上次校对结果，请修正高亮格后重试"
+                    com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
+                    val check = com.zfdang.chess.jieqi.JieqiImportValidator.validate(
+                        grid, fen.contains(" w - -"))
+                    board.errorCells = check.issues.map { it.cell }.filter { it >= 0 }.toSet()
+                    intent.getStringExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RESTORE_REASON)
+                        ?.let { Toast.makeText(this, "引擎拒绝原因：$it", Toast.LENGTH_LONG).show() }
+                    return
+                }
+            } catch (_: Exception) {}
+        }
 
         val bmp = decodeInput()
         if (bmp == null) {
@@ -143,6 +181,63 @@ class ScanActivity : AppCompatActivity() {
         }
     }
 
+    // ---- 揭棋固定候选栏（仅揭棋模式）----
+    /** 每样棋子显示一个：红排 帅仕相马车炮兵+暗，黑排 将士象马车炮卒+暗。
+     *  点候选=选中待摆子，再点棋盘格摆放；再点同一候选取消。 */
+    private fun buildJieqiPalette() {
+        val red = listOf('K', 'A', 'B', 'N', 'R', 'C', 'P', 'X')
+        val black = listOf('k', 'a', 'b', 'n', 'r', 'c', 'p', 'x')
+        fun addRow(container: LinearLayout, pieces: List<Char>) {
+            container.removeAllViews()
+            for (ch in pieces) {
+                val iv = ImageView(this)
+                val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+                iv.layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                    setMargins(dp(1), 0, dp(1), 0)
+                }
+                iv.scaleType = ImageView.ScaleType.FIT_CENTER
+                iv.adjustViewBounds = true
+                iv.setImageBitmap(paletteBitmap(ch))
+                iv.setBackgroundColor(0x00000000)
+                iv.setOnClickListener { onPalettePick(ch) }
+                container.addView(iv)
+                paletteViews[ch] = iv
+            }
+        }
+        addRow(paletteRed, red)
+        addRow(paletteBlack, black)
+        highlightPalette(null)
+    }
+
+    private fun paletteBitmap(ch: Char): android.graphics.Bitmap? {
+        if (ch == 'X' || ch == 'x') {
+            return com.zfdang.chess.jieqi.JieqiTiles.darkTile(96)
+        }
+        val id = when (ch) {
+            'K' -> R.drawable.r_shuai; 'A' -> R.drawable.r_shi; 'B' -> R.drawable.r_xiang
+            'N' -> R.drawable.r_ma; 'R' -> R.drawable.r_ju; 'C' -> R.drawable.r_pao; 'P' -> R.drawable.r_bing
+            'k' -> R.drawable.b_jiang; 'a' -> R.drawable.b_shi; 'b' -> R.drawable.b_xiang
+            'n' -> R.drawable.b_ma; 'r' -> R.drawable.b_ju; 'c' -> R.drawable.b_pao; 'p' -> R.drawable.b_zu
+            else -> return null
+        }
+        return android.graphics.BitmapFactory.decodeResource(resources, id)
+    }
+
+    private fun highlightPalette(selected: Char?) {
+        palettePiece = selected
+        for ((ch, v) in paletteViews) {
+            v.setBackgroundColor(if (ch == selected)
+                android.graphics.Color.argb(90, 242, 163, 60) else android.graphics.Color.TRANSPARENT)
+        }
+    }
+
+    private fun onPalettePick(ch: Char) {
+        highlightPalette(if (palettePiece == ch) null else ch)
+        selectedCell = -1
+        board.selected = -1
+        board.hidePopup()
+    }
+
     // ---- 摆棋交互状态机 ----
     // selectedCell: 已选中的棋子格（-1 无）；再点同一格=收起，点空格=移动，点有子格=替换
     private var selectedCell = -1
@@ -150,6 +245,19 @@ class ScanActivity : AppCompatActivity() {
     private fun onCellTapped(r: Int, c: Int) {
         val idx = r * 9 + c
         val ch = grid[r][c]
+        // 揭棋固定候选栏模式：选中候选棋子后，点棋盘格直接摆/替换（可连续摆）
+        if (jieqiMode && palettePiece != null) {
+            val piece = palettePiece!!
+            placementError(piece, r, c)?.let {
+                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                return
+            }
+            grid[r][c] = piece
+            board.grid = grid
+            board.uncertainCells = board.uncertainCells - idx
+            updateFen()
+            return
+        }
         if (selectedCell >= 0) {
             val sr = selectedCell / 9; val sc = selectedCell % 9
             val moving = grid[sr][sc]
@@ -179,12 +287,16 @@ class ScanActivity : AppCompatActivity() {
             board.selected = idx
             board.hidePopup()
         } else {
-            // 点空地 → 展示可用棋子悬浮窗（按剩余数量动态过滤）
-            val available = board.computeAvailable()
-            if (available.isEmpty()) {
-                Toast.makeText(this, "没有可用棋子了", Toast.LENGTH_SHORT).show()
+            // 点空地：揭棋模式用下方固定候选栏（先选棋子再点格）；普通模式弹悬浮窗
+            if (jieqiMode) {
+                Toast.makeText(this, "请先在下方候选栏选择棋子，再点棋盘格摆放", Toast.LENGTH_SHORT).show()
             } else {
-                board.showPopup(idx, available)
+                val available = board.computeAvailable()
+                if (available.isEmpty()) {
+                    Toast.makeText(this, "没有可用棋子了", Toast.LENGTH_SHORT).show()
+                } else {
+                    board.showPopup(idx, available)
+                }
             }
         }
     }
@@ -227,6 +339,13 @@ class ScanActivity : AppCompatActivity() {
     private fun updateFen() {
         fen = gridToFen(grid)
         tvFen.text = fen
+        // 已显示错误高亮时，每次改动棋盘都重新校验并刷新高亮，让用户即时看到修正生效
+        if (jieqiMode && board.errorCells.isNotEmpty()) {
+            com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
+            val check = com.zfdang.chess.jieqi.JieqiImportValidator.validate(
+                grid, fen.contains(" w - -"))
+            board.errorCells = check.issues.map { it.cell }.filter { it >= 0 }.toSet()
+        }
     }
 
     private fun gridToFen(g: Array<CharArray>): String {
@@ -255,24 +374,32 @@ class ScanActivity : AppCompatActivity() {
         updateFen()
     }
 
-    /** 揭棋模式开局：FEN + 推导池 → JieqiActivity */
+    /** 揭棋模式开局：结构化校验 → 引擎方言 FEN → JieqiActivity（失败则留在校对页并能定位修正） */
     private fun startJieqiGame(redFirst: Boolean, redHuman: Boolean, blackHuman: Boolean) {
-        val redK = grid.sumOf { row -> row.count { it == 'K' } }
-        val blackK = grid.sumOf { row -> row.count { it == 'k' } }
-        if (redK != 1 || blackK != 1) {
-            Toast.makeText(this, "棋盘必须包含双方将/帅", Toast.LENGTH_LONG).show()
+        com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
+        val result = com.zfdang.chess.jieqi.JieqiImportValidator.validate(grid, redFirst)
+        if (!result.ok || result.fen == null) {
+            // 高亮所有有问题的格子，显示逐条具体原因；不跳转、保留当前校对状态
+            board.errorCells = result.issues.map { it.cell }.filter { it >= 0 }.toSet()
+            val detail = result.issues.joinToString("\n") { "• ${it.message}" }
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("揭棋局面需要修正（${result.issues.size} 项）")
+                .setMessage(detail + "\n\n红色高亮的格子请点选后从下方候选栏改为明子、空位或合法暗子。")
+                .setPositiveButton("返回校对", null)
+                .show()
             return
         }
-        val importFen = com.zfdang.chess.jieqi.JieqiGameState.buildImportFen(grid, redFirst)
-        if (importFen == null) {
-            Toast.makeText(this, "揭棋局面无效（暗子位置/身份池不合法）", Toast.LENGTH_LONG).show()
-            return
-        }
+        board.errorCells = emptySet()
+        val importFen = result.fen
         val i = Intent(this, com.zfdang.chess.jieqi.JieqiActivity::class.java).apply {
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_IMPORT_FEN, importFen)
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RED_HUMAN, redHuman)
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_BLACK_HUMAN, blackHuman)
             putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RED_FIRST, redFirst)
+            // 回传原始校对结果：若引擎侧仍拒绝，JieqiActivity 要能带回并保留
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_SCAN_GRID,
+                grid.joinToString("/") { it.joinToString("") })
+            putExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_SCAN_FEN, fen)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         startActivity(i)

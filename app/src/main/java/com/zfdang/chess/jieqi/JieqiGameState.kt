@@ -172,62 +172,87 @@ class JieqiGameState private constructor(
             return fenOf(trimmed, redFirst, pools)
         }
 
-        /** 解析引擎方言 FEN（棋盘/行棋方/池），失败返回 null。 */
-        fun parseFen(fen: String): Triple<Array<CharArray>, Boolean, Array<IntArray>>? {
+        /** 解析结果：成功含 (grid, redToMove, pools)；失败含引擎可读的具体原因 */
+        data class FenParse(val value: Triple<Array<CharArray>, Boolean, Array<IntArray>>?, val error: String?)
+
+        /** 解析引擎方言 FEN（棋盘/行棋方/池），失败返回 null（保留旧接口）。 */
+        fun parseFen(fen: String): Triple<Array<CharArray>, Boolean, Array<IntArray>>? =
+            parseFenWithError(fen).value
+
+        /** 解析引擎方言 FEN，返回具体错误原因（对齐 AB-JChess set_fen_impl）。 */
+        fun parseFenWithError(fen: String): FenParse {
+            fun bad(msg: String) = FenParse(null, msg)
             val fields = fen.trim().split(Regex("\\s+"))
-            if (fields.size < 4) return null
+            if (fields.size < 4) return bad("FEN 字段不足（需 4/5/6 段，当前 ${fields.size} 段）")
             val rows = fields[0].split("/")
-            if (rows.size != 10) return null
+            if (rows.size != 10) return bad("棋盘必须 10 行（当前 ${rows.size} 行）")
             val g = Array(10) { CharArray(9) { '.' } }
             var kings = intArrayOf(0, 0)
+            var pieceCount = intArrayOf(0, 0)
             for ((i, row) in rows.withIndex()) {
                 var c = 0
                 for (ch in row) {
                     when {
                         ch.isDigit() -> c += ch - '0'
                         else -> {
-                            if (c > 8) return null
+                            if (c > 8) return bad("第 ${i + 1} 行棋盘字符超出 9 列")
+                            if (slotOf(ch) < 0 && ch != 'X' && ch != 'x') {
+                                return bad("第 ${i + 1} 行第 ${c + 1} 列含非法棋子 '$ch'")
+                            }
                             g[i][c] = ch
+                            val side = if (ch.isUpperCase()) 0 else 1
+                            pieceCount[side]++
+                            if (pieceCount[side] > 16) return bad("${if (side == 0) "红" else "黑"}方棋子超过 16 个")
                             if (ch == 'K') kings[0]++
                             if (ch == 'k') kings[1]++
-                            if (JieqiRules.isDark(ch) && JieqiRules.darkRole(i, c, JieqiRules.isRed(ch)) == '.') return null
+                            if (JieqiRules.isDark(ch) && JieqiRules.darkRole(i, c, JieqiRules.isRed(ch)) == '.') {
+                                return bad("第 ${i + 1} 行第 ${c + 1} 列的暗子不在初始暗子位" +
+                                    "（引擎：face-down piece off its start point）")
+                            }
                             c++
                         }
                     }
                 }
-                if (c != 9) return null
+                if (c != 9) return bad("第 ${i + 1} 行不是 9 列（当前 $c 列）")
             }
-            if (kings[0] != 1 || kings[1] != 1) return null
-            val redToMove = when (fields[1]) { "w" -> true; "b" -> false; else -> return null }
+            if (kings[0] != 1) return bad("红方必须恰好 1 个帅（当前 ${kings[0]} 个）")
+            if (kings[1] != 1) return bad("黑方必须恰好 1 个将（当前 ${kings[1]} 个）")
+            val redToMove = when (fields[1]) {
+                "w" -> true; "b" -> false
+                else -> return bad("非法行棋方 '${fields[1]}'（应为 w 或 b）")
+            }
             val pools = arrayOf(intArrayOf(0, 0, 0, 0, 0, 0), intArrayOf(0, 0, 0, 0, 0, 0))
             if (fields[2] != "-") {
                 var i = 0
                 val poolStr = fields[2]
+                val seen = arrayOf(BooleanArray(6), BooleanArray(6))
                 while (i < poolStr.length) {
                     val ch = poolStr[i++]
                     val slot = slotOf(ch)
-                    if (slot < 0) return null
+                    if (slot < 0) return bad("非法身份池字母 '$ch'")
                     var n = 1
                     val num = StringBuilder()
                     while (i < poolStr.length && poolStr[i].isDigit()) { num.append(poolStr[i++]) }
-                    if (num.isNotEmpty()) n = num.toString().toIntOrNull() ?: return null
-                    // 注意：扫描中局导入的推导池会被 derivePools 钳制到可能超过
-                    // URN_INIT 的值（被吃暗子的池亏空由虚构膨胀兜底，保证 池总数>=暗子数），
-                    // 因此这里只做总量合理性校验，不按初始上限拒绝
-                    if (n > 15) return null
-                    pools[if (ch.isUpperCase()) 0 else 1][slot] = n
+                    if (num.isNotEmpty()) n = num.toString().toIntOrNull()
+                        ?: return bad("身份池数量 '${num}' 不是合法数字")
+                    val side = if (ch.isUpperCase()) 0 else 1
+                    if (seen[side][slot]) return bad("身份池 ${ch} 重复声明")
+                    seen[side][slot] = true
+                    // 与引擎 URN_INIT 对齐（扫描池由 derivePoolsStrict 钳制，不会越界）
+                    if (n > URN_INIT[slot]) return bad("身份池 ${ch} 数量 $n 超过上限 ${URN_INIT[slot]}")
+                    pools[side][slot] = n
                 }
             }
-            // 池总数 ≥ 暗子数（引擎校验对齐）
             for (cc in 0..1) {
                 var dark = 0; var total = 0
                 for (r in 0 until 10) for (c in 0 until 9) {
                     if (JieqiRules.isDark(g[r][c]) && JieqiRules.isRed(g[r][c]) == (cc == 0)) dark++
                 }
                 for (s in 0 until 6) total += pools[cc][s]
-                if (total < dark) return null
+                if (total < dark) return bad(
+                    "${if (cc == 0) "红" else "黑"}方身份池总数 $total 少于暗子数 $dark")
             }
-            return Triple(g, redToMove, pools)
+            return FenParse(Triple(g, redToMove, pools), null)
         }
     }
 
