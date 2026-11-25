@@ -1,0 +1,1 @@
+3fab6687cb458bfdcd0334889d4430c24d714701aa7b50d3ce366c8c481136c8  app/build/outputs/apk/armv8-/debug/ChessFish_20261125_36_armv8-Debug.apk
