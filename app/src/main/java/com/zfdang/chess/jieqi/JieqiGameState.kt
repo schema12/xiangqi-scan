@@ -153,11 +153,16 @@ class JieqiGameState private constructor(
                 for (r in 0 until 10) for (c in 0 until 9)
                     if (JieqiRules.isDark(grid[r][c]) && JieqiRules.isRed(grid[r][c]) == (side == 0)) dark++
                 var total = pools[side].sum()
+                // 按「剩余额度最大」的槽补足，单槽不得超过 URN_INIT（引擎 pool count too large 约束）。
+                // 旧逻辑选「当前数量最大」的槽，会把 P=5 加到 6 而被引擎拒绝。
                 while (total < dark) {
                     var idx = -1
-                    var max = 0
-                    for (s in 0 until 6) if (pools[side][s] > max) { max = pools[side][s]; idx = s }
-                    if (idx < 0 || max == 0) break
+                    var room = 0
+                    for (s in 0 until 6) {
+                        val r = URN_INIT[s] - pools[side][s]
+                        if (r > room) { room = r; idx = s }
+                    }
+                    if (idx < 0 || room == 0) break
                     pools[side][idx]++
                     total++
                 }

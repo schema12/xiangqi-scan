@@ -411,10 +411,12 @@ class JieqiStateTest {
         val (g2, _, pools) = JieqiGameState.parseFen(fen!!)!!
         var redDark = 0
         for (r in 0 until 10) for (c in 0 until 9) if (g2[r][c] == 'X') redDark++
-        // 14 个红暗子（15 槽 - 帅占 d9），池 15-2-2=11 < 14 → 必须钳制到 14
+        // 14 个红暗子（15 槽 - 帅占 d9），池 15-2=13 < 14 → 必须钳制补足到 >=14，
+        // 但每槽不得超过引擎 URN_INIT（否则引擎报 pool count too large）。
         assertEquals(14, redDark)
+        val urnInit = intArrayOf(2, 2, 2, 2, 2, 5) // slot: R N B A C P
         assertTrue("池总数(${pools[0].sum()}) 必须 >= 红暗子数($redDark)", pools[0].sum() >= redDark)
-        assertTrue("钳制应发生（池被虚构膨胀）", pools[0][5] > 5 || pools[0][0] > 2)
+        for (s in 0 until 6) assertTrue("槽 $s 超出引擎上限", pools[0][s] <= urnInit[s])
     }
 
     @Test
