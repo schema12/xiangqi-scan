@@ -95,7 +95,8 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         findViewById<View>(R.id.jqHintbt).setOnClickListener { requestHint() }
         findViewById<View>(R.id.jqSetupbt).setOnClickListener { showSetupDialog() }
         findViewById<View>(R.id.jqScanbt).setOnClickListener {
-            captureLauncher.launch(android.content.Intent(this, com.zfdang.chess.views.CaptureActivity::class.java))
+            captureLauncher.launch(android.content.Intent(this, com.zfdang.chess.views.CaptureActivity::class.java)
+                .putExtra(com.zfdang.chess.views.CaptureActivity.EXTRA_JIEQI, true))
         }
         findViewById<View>(R.id.jqCopybt).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

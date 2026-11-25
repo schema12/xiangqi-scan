@@ -32,11 +32,14 @@ class CaptureActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PATH = "path"
+        /** 揭棋模式：拍照/相册后交给 ScanActivity 时须透传，否则会用普通16类模型丢失暗子 */
+        const val EXTRA_JIEQI = "jieqi"
     }
 
     private lateinit var preview: androidx.camera.view.PreviewView
     private lateinit var btnShot: Button
     private var imageCapture: ImageCapture? = null
+    private var jieqiMode = false
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -54,6 +57,7 @@ class CaptureActivity : AppCompatActivity() {
         uri?.let {
             startActivity(Intent(this, ScanActivity::class.java).apply {
                 putExtra(ScanActivity.EXTRA_URI, it.toString())
+                putExtra(ScanActivity.EXTRA_JIEQI, jieqiMode)
             })
             finish()
         }
@@ -62,6 +66,7 @@ class CaptureActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_capture)
+        jieqiMode = intent.getBooleanExtra(EXTRA_JIEQI, false)
         preview = findViewById(R.id.preview)
         btnShot = findViewById(R.id.btnShot)
         findViewById<TextView>(R.id.capHint).text = getString(R.string.cap_hint)
@@ -115,6 +120,7 @@ class CaptureActivity : AppCompatActivity() {
                 override fun onImageSaved(out: ImageCapture.OutputFileResults) {
                     startActivity(Intent(this@CaptureActivity, ScanActivity::class.java).apply {
                         putExtra(ScanActivity.EXTRA_PATH, file.absolutePath)
+                        putExtra(ScanActivity.EXTRA_JIEQI, jieqiMode)
                     })
                     finish()
                 }
