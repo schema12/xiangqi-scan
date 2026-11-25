@@ -390,8 +390,8 @@ class JieqiStateTest {
 
     @Test
     fun `scan import pool clamps when revealed pieces exceed initial pool`() {
-        // 识别把 3 个红车摆在盘面（识别错误或用户摆错）：车只扣减 2 个池位（钳到 0），
-        // 泄漏 1 个亏空，使 池总数 < 暗子数，derivePools 必须钳制兜底且 parseFen 接受。
+        // 识别把 1 个红车摆在盘面：14 暗子+帅+车=16（不超引擎每方16子上限）。
+        // 池推导后 池总数 < 暗子数，derivePools 必须在 URN_INIT 内钳制补足。
         // 注意：暗子只能摆在暗子角色位（王位 e9 无暗子身份，不可摆暗子）。
         val rows = listOf(
             "xxxxkxxxx",
@@ -402,7 +402,7 @@ class JieqiStateTest {
             ".........",
             "X.X.X.X.X",
             ".X.....X.",
-            "..R.R.R..",   // 3 个"红车"摆在非暗子位（c8/e8/g8）
+            "....R....",   // 1 个"红车"摆在非暗子位（e8）
             "XXXK.XXXX"
         )
         val grid = Array(10) { r -> rows[r].toCharArray() }
