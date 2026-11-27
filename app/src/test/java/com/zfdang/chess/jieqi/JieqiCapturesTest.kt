@@ -26,7 +26,7 @@ class JieqiCapturesTest {
 
     @Test
     fun caps_apply_to_parse() {
-        val (red, black) = JieqiCaptures.parse("RRRRRP,9;ppppp,9")
+        val (red, black) = JieqiCaptures.parse("RRRRRPPPPP,9;ppppp,9")
         assertEquals(JieqiCaptures.MAX_NORMAL, red['R'])   // 常规子封顶 2
         assertEquals(JieqiCaptures.MAX_PAWN, red['P'])      // 兵封顶 5
         assertEquals(JieqiCaptures.MAX_DARK, red['X'])      // 暗子封顶 9
