@@ -83,7 +83,7 @@ class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
             text = "${title}（点一下 +1，到上限再点归零；长按 -1）"
             textSize = 13f
             setTextColor(0xFF444444.toInt())
-        }))
+        })
         val icons = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
