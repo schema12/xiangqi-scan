@@ -239,17 +239,17 @@ class ScanActivity : AppCompatActivity() {
             }
             // 暗子数量：TextView 点击循环 0..9
             val darkView = TextView(this).apply {
-                textSize = 15f; gravity = android.view.Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(dp(90), dp(46)).apply { setMargins(dp(8), 0, 0, 0) }
+                textSize = 13f; gravity = android.view.Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(66), dp(46)).apply { setMargins(dp(4), 0, 0, 0) }
                 background = androidx.core.content.ContextCompat.getDrawable(
                     this@ScanActivity, com.zfdang.chess.R.drawable.bg_card_white)
                 setOnClickListener {
                     val n = (darkRef() + 1) % 10
                     darkSet(n)
-                    text = "暗子 ×$n"
+                    text = "暗$n"
                 }
             }
-            darkView.text = "暗子 ×${darkRef()}"
+            darkView.text = "暗${darkRef()}"
             icons.addView(darkView)
             refresh()
             row.addView(icons)
@@ -553,7 +553,7 @@ class ScanActivity : AppCompatActivity() {
 
         override fun onMeasure(w: Int, h: Int) {
             val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
-            setMeasuredDimension(dp(42), dp(46))
+            setMeasuredDimension(dp(36), dp(46))
         }
 
         override fun onDraw(canvas: android.graphics.Canvas) {
