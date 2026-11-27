@@ -125,6 +125,11 @@
                     style="@style/JqTool"><ImageView style="@style/JqToolIcon"
                         app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
                     <TextView style="@style/JqToolLabel" android:text="身份池"/></LinearLayout>
+
+                <LinearLayout android:id="@+id/jqCapturesBt"
+                    style="@style/JqTool"><ImageView style="@style/JqToolIcon"
+                        app:srcCompat="@drawable/ic_settings" xmlns:app="http://schemas.android.com/apk/res-auto"/>
+                    <TextView style="@style/JqToolLabel" android:text="修正吃子"/></LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

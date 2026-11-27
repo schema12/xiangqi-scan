@@ -10,7 +10,18 @@ object JieqiCaptures {
     const val DARK_RED = 'X'
     const val DARK_BLACK = 'x'
 
+    /** 单种棋子可吃上限：常规子 2、兵/卒 5、暗子 9（避免点选过多）。 */
+    const val MAX_NORMAL = 2
+    const val MAX_PAWN = 5
+    const val MAX_DARK = 9
+
     private const val REVEALED = "KABNRCPkabnrcp"
+
+    fun maxOf(ch: Char): Int = when (ch) {
+        'P', 'p' -> MAX_PAWN
+        DARK_RED, DARK_BLACK -> MAX_DARK
+        else -> MAX_NORMAL
+    }
 
     /** 解析吃子补充串；返回 (红方吃掉的子, 黑方吃掉的子)，map 值为数量。 */
     fun parse(spec: String?): Pair<MutableMap<Char, Int>, MutableMap<Char, Int>> {
@@ -31,7 +42,15 @@ object JieqiCaptures {
                 dest[ch] = (dest[ch] ?: 0) + 1
             }
             val n = parts[1].trim().toIntOrNull() ?: 0
-            if (n > 0) dest[dark] = n.coerceAtMost(16)
+            if (n > 0) dest[dark] = n.coerceIn(0, MAX_DARK)
+        }
+        // 逐棋子收敛到上限，防止历史脏数据把吃子区画爆
+        for (m in arrayOf(red, black)) {
+            for (ch in m.keys.toList()) {
+                val n = m[ch] ?: 0
+                if (n > maxOf(ch)) m[ch] = maxOf(ch)
+                if (n <= 0) m.remove(ch)
+            }
         }
         return red to black
     }
@@ -41,12 +60,14 @@ object JieqiCaptures {
         if (red.isEmpty() && black.isEmpty()) return ""
         fun side(map: Map<Char, Int>, dark: Char): String {
             val letters = StringBuilder()
-            for ((ch, n) in map) {
+            for ((ch, nRaw) in map) {
                 if (ch == 'K' || ch == 'k') continue
                 if (ch == DARK_RED || ch == DARK_BLACK || ch !in REVEALED) continue
-                repeat(n.coerceAtLeast(0).coerceAtMost(16)) { letters.append(ch) }
+                val n = nRaw.coerceIn(0, maxOf(ch))
+                repeat(n) { letters.append(ch) }
             }
-            return "$letters,${map[dark] ?: 0}"
+            val darkN = (map[dark] ?: 0).coerceIn(0, MAX_DARK)
+            return "$letters,$darkN"
         }
         return "${side(red, DARK_RED)};${side(black, DARK_BLACK)}"
     }
@@ -56,5 +77,21 @@ object JieqiCaptures {
         val counts = LinkedHashMap<Char, Int>()
         for (ch in pieces) counts[ch] = (counts[ch] ?: 0) + 1
         return counts.map { it.key to it.value }
+    }
+
+    /** 从对局状态真实吃子列表导出 spec（供对局页「修正吃子」载入编辑器）。
+     *  只取明子（wasHidden=false）；暗子身份未知的统一并入暗子计数，身份已知的真实子是历史录入，不改。 */
+    fun specOf(captured: Array<MutableList<CapturedPiece>>): String {
+        fun side(list: List<CapturedPiece>, dark: Char): Map<Char, Int> {
+            val m = LinkedHashMap<Char, Int>()
+            for (cp in list) {
+                if (cp.ch == 'K' || cp.ch == 'k') continue
+                val ch = if (cp.wasHidden && cp.ch == '?') dark else cp.ch
+                if (ch !in REVEALED && ch != DARK_RED && ch != DARK_BLACK) continue
+                m[ch] = (m[ch] ?: 0) + 1
+            }
+            return m
+        }
+        return format(side(captured[0], DARK_RED), side(captured[1], DARK_BLACK))
     }
 }

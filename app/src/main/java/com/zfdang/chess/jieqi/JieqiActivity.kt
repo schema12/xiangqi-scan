@@ -118,6 +118,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             Toast.makeText(this, "揭棋局面已复制", Toast.LENGTH_SHORT).show()
         }
         findViewById<View>(R.id.jqPoolbt).setOnClickListener { showPoolEditor() }
+        findViewById<View>(R.id.jqCapturesBt).setOnClickListener { showCapturesFixDialog() }
 
         val importFen = intent.getStringExtra(EXTRA_IMPORT_FEN)
         val restored = loadSaved()
@@ -600,6 +601,27 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
                 }
             }
         }
+    }
+
+    /** 对局页「修正吃子」：就地重建 captured，不触碰棋盘/身份池/引擎/历史。
+     *  吃子记录只影响吃子区显示，不进引擎，输错不会导致引擎崩溃。 */
+    private fun showCapturesFixDialog() {
+        val editor = JieqiCapturesEditor(this)
+        editor.load(JieqiCaptures.specOf(state.captured))
+        val scroll = android.widget.ScrollView(this).apply { addView(editor) }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("修正吃子记录")
+            .setMessage("只影响吃子区显示，不影响棋局与引擎。点棋子 +1，到上限再点归零；长按 -1。")
+            .setView(scroll)
+            .setPositiveButton("保存") { _, _ ->
+                state.captured[0].clear(); state.captured[1].clear()
+                applyCapturesSpec(editor.buildSpec())
+                updateCaptured()
+                persist()
+                Toast.makeText(this, "吃子记录已更新", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     // ------------------------------------------------------------------
