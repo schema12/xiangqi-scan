@@ -128,8 +128,9 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
+    </LinearLayout>
 
-    <!-- 身份录入弹窗最小化后：浮动"继续录入"按钮（覆盖在内容之上，不遮挡棋盘视野） -->
+    <!-- 身份录入弹窗最小化后：浮动"继续录入"按钮（FrameLayout 直接子级，覆盖在内容之上） -->
     <TextView android:id="@+id/jqResumeIdentity"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
@@ -140,5 +141,4 @@
         android:text="待录入揭晓身份 · 点此继续"
         android:textColor="@color/ui_purple" android:textSize="15sp" android:textStyle="bold"
         android:elevation="8dp"/>
-</LinearLayout>
 </FrameLayout>

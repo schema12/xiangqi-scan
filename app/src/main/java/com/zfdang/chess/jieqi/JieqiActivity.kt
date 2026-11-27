@@ -68,6 +68,10 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     /** 身份录入弹窗最小化后，保存"重新弹出"的闭包；浮动按钮点击时调用 */
     private var pendingIdentityPrompt: (() -> Unit)? = null
 
+    /** AI 翻暗子待用户确认：已记录该手，等用户点击标记的目的地后再弹窗录入身份。
+     *  与谁执红/执黑无关，切换身份设置不会破坏此状态；坐标均为逻辑坐标，翻转棋盘自动适配。 */
+    private var awaitingAiRevealConfirm = false
+
     /** 终局提示：绝杀/将死。由引擎 mate 分数或 App 无合法走法判定。 */
     private var gameOver = false
     private var gameOverReason = ""
@@ -224,6 +228,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         board.lastMove = null
         board.hint = -1
         board.revealCell = -1
+        awaitingAiRevealConfirm = false
         pendingIdentityPrompt = null
         findViewById<View>(R.id.jqResumeIdentity).visibility = View.GONE
         opponentLabel.text = when {
@@ -243,6 +248,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
     private fun updateStatus() {
         statusText.text = when {
             gameOver -> "对局结束 · $gameOverReason"
+            awaitingAiRevealConfirm -> "电脑翻了暗子：请点琥珀色标记的目的地录入身份"
             thinking -> "电脑思考中，请稍候..."
             else -> if (state.redToMove) "轮到红方走棋" else "轮到黑方走棋"
         }
@@ -317,10 +323,27 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     private fun onCellTap(r: Int, c: Int) {
         val tappedPiece = state.grid.getOrNull(r)?.getOrNull(c) ?: '?'
-        GcLog.d("JQ tap: grid[$r][$c]='$tappedPiece' redToMove=${state.redToMove} redIsHuman=$redIsHuman blackIsHuman=$blackIsHuman sel=$board.selected hint=${"abcdefghi"[c]}${9-r}")
+        GcLog.d("JQ tap: grid[$r][$c]='$tappedPiece' redToMove=${state.redToMove} sel=$board.selected reveal=${board.revealCell} await=$awaitingAiRevealConfirm")
+        if (r !in 0..9 || c !in 0..8) return
+
+        // AI 翻暗子待确认：只认标记的目的地（逻辑坐标），点它才弹窗录身份。
+        // 翻转棋盘时 onCellTap 收到的已是逆映射后的逻辑坐标，无需额外换算。
+        if (awaitingAiRevealConfirm) {
+            val pm = pendingMove
+            if (pm == null) { awaitingAiRevealConfirm = false; return }
+            if (r == pm.tr && c == pm.tc) {
+                awaitingAiRevealConfirm = false
+                board.selected = -1
+                board.revealCell = -1
+                showPendingIdentity(pm)
+            } else {
+                toast("请点击琥珀色标记的目的地，确认电脑翻的暗子")
+            }
+            return
+        }
+
         if (thinking) { toast("电脑思考中，请稍候..."); return }
         if (!humanTurn()) { toast("等待对方出招"); return }
-        if (r !in 0..9 || c !in 0..8) return
 
         val sel = board.selected
         if (sel >= 0) {
@@ -364,30 +387,40 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         board.selected = -1
         if (needReveal || needVictim) {
             pendingMove = PendingMove(fr, fc, tr, tc, needReveal, needVictim)
-            // 高亮待录入的暗子（移动暗子→目标格；只吃暗子→被吃格），便于对照原棋盘
             board.revealCell = tr * 9 + tc
-            if (needReveal) promptIdentity(
-                "请选择揭晓身份", "对照原棋盘：该暗子翻出的棋子", state.redToMove) { ch ->
-                pendingMove?.reveal = ch
-                if (needVictim) promptIdentity(
-                    "请输入被吃暗子身份", "对照原棋盘：被吃掉的暗子是", false) { v ->
-                    commitPendingMove(v)
-                } else commitPendingMove('.')
-            }
-            else if (needVictim) promptIdentity(
-                "请输入被吃暗子身份", "对照原棋盘：被吃掉的暗子是", !state.redToMove) { v ->
-                commitPendingMove(v)
-            }
+            // 人工翻暗子：保持原样，直接弹窗录入
+            showPendingIdentity(pendingMove!!)
             return true
         }
         commitMove(fr, fc, tr, tc, '.', '.')
         return true
     }
 
+    /** 弹出待录身份的弹窗（人工直接调用；AI 待用户点目的地后调用）。
+     *  全部颜色/字形由 PendingMove 自身数据推导，与当前人机身份设置、棋盘翻转无关。 */
+    private fun showPendingIdentity(pm: PendingMove) {
+        val mover = state.grid.getOrNull(pm.fr)?.getOrNull(pm.fc) ?: '.'
+        val victim = state.grid.getOrNull(pm.tr)?.getOrNull(pm.tc) ?: '.'
+        val moverRed = JieqiRules.isRed(mover)
+        if (pm.needReveal) promptIdentity(
+            "请录入揭晓身份", "对照原棋盘：${if (moverRed) "红" else "黑"}方暗子翻出的棋子是", moverRed) { ch ->
+            pm.reveal = ch
+            if (pm.needVictim) promptIdentity(
+                "请录入被吃暗子身份", "对照原棋盘：被吃掉的${if (JieqiRules.isRed(victim)) "红" else "黑"}方暗子是",
+                JieqiRules.isRed(victim)) { v -> commitPendingMove(v) }
+            else commitPendingMove('.')
+        } else promptIdentity(
+            "请录入被吃暗子身份", "对照原棋盘：被吃掉的暗子是", JieqiRules.isRed(victim)) { v ->
+            commitPendingMove(v)
+        }
+    }
+
     private fun commitPendingMove(victim: Char) {
         val pm = pendingMove ?: return
         pendingMove = null
+        awaitingAiRevealConfirm = false
         board.revealCell = -1
+        board.selected = -1
         findViewById<View>(R.id.jqResumeIdentity).visibility = View.GONE
         commitMove(pm.fr, pm.fc, pm.tr, pm.tc, pm.reveal, victim)
     }
@@ -532,20 +565,12 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         val needVictim = capturedDark && state.assignment == null
         if (needReveal || needVictim) {
             pendingMove = PendingMove(gr, gc, gtr, gtc, needReveal, needVictim)
-            // 高亮电脑动的那个暗子（落子目标格，即暗子翻明后的位置）
+            // AI 翻暗子新流程：同时框出起点（selected）和终点（revealCell），不弹窗；
+            // 等用户点终点后才弹窗录身份（onCellTap 的 awaitingAiRevealConfirm 分支）。
+            board.selected = gr * 9 + gc
             board.revealCell = gtr * 9 + gtc
-            val moverRed = JieqiRules.isRed(mover)
-            if (needReveal) promptIdentity(
-                "电脑动了暗子：请录入揭晓身份",
-                "原棋盘中你走了该暗子，翻出的${if (moverRed) "红" else "黑"}方棋子是", moverRed) { ch ->
-                pendingMove?.reveal = ch
-                if (needVictim) promptIdentity(
-                    "电脑吃掉了你的暗子：请录入被吃身份",
-                    "原棋盘中被吃掉的黑方暗子是", false) { v -> commitPendingMove(v) }
-                else commitPendingMove('.')
-            } else if (needVictim) promptIdentity(
-                "电脑吃掉了你的暗子：请录入被吃身份",
-                "对照原棋盘：被吃掉的暗子是", JieqiRules.isRed(victim)) { v -> commitPendingMove(v) }
+            awaitingAiRevealConfirm = true
+            statusText.text = "电脑翻了暗子（见琥珀色框）：请点标记的目的地录入揭晓身份"
             updateStatus()
             return true
         }
@@ -666,6 +691,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         }
         thinking = false
         pendingMove = null
+        awaitingAiRevealConfirm = false
         gameOver = false
         gameOverReason = ""
         finishBoardSetup(resumed = true)
