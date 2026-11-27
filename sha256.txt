@@ -1,1 +1,1 @@
-7459bc0b9c747016e2f5606214b2aec5067056c3c30e8cac60a3c516dfd760f3  app/build/outputs/apk/armv8-/debug/ChessFish_20261125_49_armv8-Debug.apk
+147925cedeebf7fd957263ee46227f8a97890081580e893fb5a787becd6502cd  app/build/outputs/apk/armv8-/debug/ChessFish_20261127_50_armv8-Debug.apk
