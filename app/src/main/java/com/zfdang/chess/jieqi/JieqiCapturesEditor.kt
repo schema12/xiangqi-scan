@@ -88,11 +88,13 @@ class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
             setPadding(0, dp(8), 0, dp(8))
         }
         row.addView(TextView(context).apply {
-            text = "$title（点一下 +1，到上限再点归零；长按 -1）"
-            textSize = 13f; setTextColor(0xFF444444.toInt())
-        }))
+            text = "${title}（点一下 +1，到上限再点归零；长按 -1）"
+            textSize = 13f
+            setTextColor(0xFF444444.toInt())
+        })
         val icons = LinearLayout(context).apply {
-            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
         for (ch in pieces + darkChar) {
             val bmp = if (ch == JieqiCaptures.DARK_RED || ch == JieqiCaptures.DARK_BLACK)
