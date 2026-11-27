@@ -20,10 +20,10 @@ class JieqiCapturesTest {
 
     @Test
     fun parse_ignores_kings_and_wrong_case() {
-        // 红组只能放小写，黑组只能放大写；K/k 是被吃不到的将帅
-        val (red, black) = JieqiCaptures.parse("Rr,0;nN,0")
-        assertEquals(0, red.size)   // R 大写不该出现在红组；r 数量0被移除
-        assertEquals(0, black.size) // n 小写不该出现在黑组；N 数量0被移除
+        // 红组只接受小写，黑组只接受大写；K/k 是被吃不到的将帅
+        val (red, black) = JieqiCaptures.parse("RK,0;np,0")
+        assertEquals(0, red.size)   // R 大写、K 将帅都不该出现在红组
+        assertEquals(0, black.size) // n/p 小写不该出现在黑组
     }
 
     @Test
