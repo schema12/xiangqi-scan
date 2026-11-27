@@ -94,4 +94,24 @@ object JieqiCaptures {
         }
         return format(side(captured[0], DARK_RED), side(captured[1], DARK_BLACK))
     }
+
+    /** 从 spec 导出「被吃明子」按所属方+角色的计数，供身份池扣减。
+     *  池 = 初始15 − 盘面明子 − 已翻明后被吃的明子；被吃暗子身份未知不扣池。
+     *  按棋子字母本身大小写决定归属方（红字母 R→红池、黑字母 r→黑池），
+     *  而不是按"谁吃掉"分组（红方吃掉的子是黑子，黑方吃掉的子是红子）。
+     *  返回 [redSlots, blackSlots]，slot 顺序 R N B A C P。 */
+    fun capturedRevealedSlots(spec: String?): Array<IntArray> {
+        val slots = arrayOf(IntArray(6), IntArray(6))
+        val (red, black) = parse(spec)
+        val order = charArrayOf('R', 'N', 'B', 'A', 'C', 'P')
+        for (map in listOf(red, black)) {
+            for ((ch, n) in map) {
+                val side = if (ch.isUpperCase()) 0 else 1
+                val up = ch.uppercaseChar()
+                val s = order.indexOf(up)
+                if (s >= 0) slots[side][s] += n
+            }
+        }
+        return slots
+    }
 }

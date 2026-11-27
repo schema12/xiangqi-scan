@@ -118,7 +118,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
             Toast.makeText(this, "揭棋局面已复制", Toast.LENGTH_SHORT).show()
         }
         findViewById<View>(R.id.jqPoolbt).setOnClickListener { showPoolEditor() }
-        findViewById<View>(R.id.jqCapturesBt).setOnClickListener { showCapturesFixDialog() }
+        findViewById<View>(R.id.jqCapturesBt).setOnClickListener { startBoardEditor() }
 
         val importFen = intent.getStringExtra(EXTRA_IMPORT_FEN)
         val restored = loadSaved()
@@ -603,25 +603,25 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         }
     }
 
-    /** 对局页「修正吃子」：就地重建 captured，不触碰棋盘/身份池/引擎/历史。
-     *  吃子记录只影响吃子区显示，不进引擎，输错不会导致引擎崩溃。 */
-    private fun showCapturesFixDialog() {
-        val editor = JieqiCapturesEditor(this)
-        editor.load(JieqiCaptures.specOf(state.captured))
-        val scroll = android.widget.ScrollView(this).apply { addView(editor) }
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("修正吃子记录")
-            .setMessage("只影响吃子区显示，不影响棋局与引擎。点棋子 +1，到上限再点归零；长按 -1。")
-            .setView(scroll)
-            .setPositiveButton("保存") { _, _ ->
-                state.captured[0].clear(); state.captured[1].clear()
-                applyCapturesSpec(editor.buildSpec())
-                updateCaptured()
-                persist()
-                Toast.makeText(this, "吃子记录已更新", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+    /** 对局页「摆棋」：把当前局面 + 吃子 + 先手方带回校对页（跳过识别）。
+     *  校对页可改局面棋子/位置/数量与吃子，点校准完成确认先后手和身份后重新开局。
+     *  对局历史/悔棋栈会重置（摆棋即手动悔棋到校对局面），符合用户预期。 */
+    private fun startBoardEditor() {
+        if (thinking || pendingMove != null || awaitingAiRevealConfirm) {
+            Toast.makeText(this, "请先完成当前招法/身份录入再摆棋", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val gridStr = state.grid.joinToString("/") { it.joinToString("") }
+        val i = android.content.Intent(this, com.zfdang.chess.views.ScanActivity::class.java).apply {
+            putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_JIEQI, true)
+            putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_EDIT_GRID, gridStr)
+            putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_EDIT_RED_FIRST, state.redToMove)
+            putExtra(com.zfdang.chess.views.ScanActivity.EXTRA_EDIT_CAPTURES,
+                JieqiCaptures.specOf(state.captured))
+            addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        startActivity(i)
+        finish()
     }
 
     // ------------------------------------------------------------------

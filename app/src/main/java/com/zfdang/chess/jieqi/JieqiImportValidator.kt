@@ -129,8 +129,12 @@ object JieqiImportValidator {
         return -1
     }
 
-    /** 由 grid 推导池：严格按引擎 URN_INIT 钳制，且保证池总数 ≥ 暗子数 */
-    private fun derivePoolsStrict(grid: Array<CharArray>, redToMove: Boolean): Array<IntArray> {
+    /** 由 grid 推导池：严格按引擎 URN_INIT 钳制，且保证池总数 ≥ 暗子数。
+     *  capturedSpec 为可选补充吃子：已翻明后被吃的明子身份已知，需从池再扣一次
+     *  （翻明时扣过一次，但被吃后子不在盘面，仅按盘面明子算会漏扣使池偏大）。 */
+    private fun derivePoolsStrict(
+        grid: Array<CharArray>, redToMove: Boolean, capturedSpec: String? = null
+    ): Array<IntArray> {
         val pools = Array(2) { intArrayOf(2, 2, 2, 2, 2, 5) }
         for (r in 0 until 10) for (c in 0 until 9) {
             val ch = grid[r][c]
@@ -138,6 +142,11 @@ object JieqiImportValidator {
             val side = if (JieqiRules.isRed(ch)) 0 else 1
             val slot = slotOf(ch)
             if (slot >= 0 && pools[side][slot] > 0) pools[side][slot]--
+        }
+        // 扣掉「已翻明后被吃」的明子（身份已知，不应留在未揭晓池里）
+        val eaten = JieqiCaptures.capturedRevealedSlots(capturedSpec)
+        for (side in 0..1) for (s in 0 until 6) {
+            pools[side][s] = (pools[side][s] - eaten[side][s]).coerceAtLeast(0)
         }
         for (side in 0..1) {
             var dark = 0
@@ -193,7 +202,9 @@ object JieqiImportValidator {
      * @param grid 10×9，'.'=空，X/x=暗子，其余 FEN 字符=明子
      * @param redToMove 引擎方言先手方
      */
-    fun validate(grid: Array<CharArray>, redToMove: Boolean): Validation {
+    fun validate(
+        grid: Array<CharArray>, redToMove: Boolean, capturedSpec: String? = null
+    ): Validation {
         val issues = ArrayList<Issue>()
 
         if (grid.size != 10 || grid.any { it.size != 9 }) {
@@ -239,7 +250,7 @@ object JieqiImportValidator {
             }
         }
 
-        val pools = derivePoolsStrict(grid, redToMove)
+        val pools = derivePoolsStrict(grid, redToMove, capturedSpec)
         for (side in 0..1) {
             val total = pools[side].sum()
             if (total < darks[side]) {

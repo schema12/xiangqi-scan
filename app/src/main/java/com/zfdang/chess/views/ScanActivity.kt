@@ -33,6 +33,12 @@ class ScanActivity : AppCompatActivity() {
         const val EXTRA_PATH = "path"
         const val EXTRA_JIEQI = "jieqi"
         const val EXTRA_URI = "uri"
+        /** 摆棋编辑模式：从对局页带回当前局面（10×9 字符串，行以 / 分隔），跳过识别直接校对 */
+        const val EXTRA_EDIT_GRID = "jqEditGrid"
+        /** 摆棋编辑模式：当前先手方 true=红 */
+        const val EXTRA_EDIT_RED_FIRST = "jqEditRedFirst"
+        /** 摆棋编辑模式：当前吃子记录 spec */
+        const val EXTRA_EDIT_CAPTURES = "jqEditCaptures"
         private const val MAX_DIM = 4096   // 实测全分辨率角点最稳，勿随意缩小
     }
 
@@ -112,10 +118,30 @@ class ScanActivity : AppCompatActivity() {
                     tvConf.text = "已恢复上次校对结果，请修正高亮格后重试"
                     com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
                     val check = com.zfdang.chess.jieqi.JieqiImportValidator.validate(
-                        grid, fen.contains(" w - -"))
+                        grid, fen.contains(" w - -"), capturesSpec)
                     board.errorCells = check.issues.map { it.cell }.filter { it >= 0 }.toSet()
                     intent.getStringExtra(com.zfdang.chess.jieqi.JieqiActivity.EXTRA_RESTORE_REASON)
                         ?.let { Toast.makeText(this, "引擎拒绝原因：$it", Toast.LENGTH_LONG).show() }
+                    return
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 摆棋编辑模式：从对局页带回局面 + 吃子 + 先手方，跳过识别直接校对
+        val editGrid = intent.getStringExtra(EXTRA_EDIT_GRID)
+        if (editGrid != null) {
+            try {
+                val rows = editGrid.split("/")
+                if (rows.size == 10 && rows.all { it.length == 9 }) {
+                    grid = Array(10) { r -> rows[r].toCharArray() }
+                    capturesSpec = intent.getStringExtra(EXTRA_EDIT_CAPTURES) ?: ""
+                    board.grid = grid
+                    updateFen()
+                    tvConf.text = "摆棋模式：可修改局面棋子与吃子，点校准完成确认先后手和身份"
+                    com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
+                    val check = com.zfdang.chess.jieqi.JieqiImportValidator.validate(
+                        grid, intent.getBooleanExtra(EXTRA_EDIT_RED_FIRST, true), capturesSpec)
+                    board.errorCells = check.issues.map { it.cell }.filter { it >= 0 }.toSet()
                     return
                 }
             } catch (_: Exception) {}
@@ -364,7 +390,7 @@ class ScanActivity : AppCompatActivity() {
         if (jieqiMode && board.errorCells.isNotEmpty()) {
             com.zfdang.chess.jieqi.JieqiImportValidator.ensureLoaded(this)
             val check = com.zfdang.chess.jieqi.JieqiImportValidator.validate(
-                grid, fen.contains(" w - -"))
+                grid, fen.contains(" w - -"), capturesSpec)
             board.errorCells = check.issues.map { it.cell }.filter { it >= 0 }.toSet()
         }
     }
@@ -401,7 +427,7 @@ class ScanActivity : AppCompatActivity() {
         // 校对阶段按位置确定暗子所属方（背面无红黑，X/x 只是引擎编码，由所在初始位唯一决定）。
         // 这不是识别阶段改类别：暗子状态由模型判定，红黑归属纯由揭棋规则的位置推出。
         val normalized = com.zfdang.chess.jieqi.JieqiImportValidator.normalizeDarkSides(grid)
-        val result = com.zfdang.chess.jieqi.JieqiImportValidator.validate(grid, redFirst)
+        val result = com.zfdang.chess.jieqi.JieqiImportValidator.validate(grid, redFirst, capturesSpec)
         if (normalized.isNotEmpty()) {
             board.grid = grid
             updateFen()
