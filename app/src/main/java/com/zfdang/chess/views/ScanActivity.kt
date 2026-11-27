@@ -188,18 +188,90 @@ class ScanActivity : AppCompatActivity() {
     }
 
     /** 可选：手动补充扫描前已被吃掉的棋子（校对页填，不影响识别；用于吃子区显示）。
-     *  明子用 FEN 字母填写（如 "RNPB"），暗子填数字。两组用分号分隔，顺序：红;黑。 */
+     *  红黑两行点击选明子（同子重复点击累加，左上角角标显示数量），暗子单独选数量。 */
     private fun showCapturesEditor() {
-        val et = EditText(this)
-        et.hint = "红明子,红暗数;黑明子,黑暗数  例：RB,2;np,1"
-        et.setText(capturesSpec)
-        et.setSingleLine(true)
-        et.textSize = 14f
+        val (red0, black0) = com.zfdang.chess.jieqi.JieqiCaptures.parse(capturesSpec)
+        // 工作状态：明子 LinkedHashMap<Char, Int>（保留顺序），暗子数
+        val redPieces = LinkedHashMap<Char, Int>()
+        val blackPieces = LinkedHashMap<Char, Int>()
+        fun seed(dst: MutableMap<Char, Int>, src: Map<Char, Int>) {
+            for ((ch, n) in src) if (ch != 'X' && ch != 'x') dst[ch] = n
+        }
+        seed(redPieces, red0); seed(blackPieces, black0)
+        var redDark = red0['X'] ?: 0
+        var blackDark = black0['x'] ?: 0
+
+        val scroll = android.widget.ScrollView(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+            setPadding(dp(20), dp(12), dp(20), dp(4))
+        }
+        scroll.addView(root)
+
+        val revealChars = listOf('K', 'A', 'B', 'N', 'R', 'C', 'P')
+        val hideChars = listOf('k', 'a', 'b', 'n', 'r', 'c', 'p')
+
+        fun buildRow(sideName: String, pieces: List<Char>, map: MutableMap<Char, Int>, darkRef: () -> Int, darkSet: (Int) -> Unit): View {
+            val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(8), 0, dp(8))
+            }
+            val title = TextView(this).apply {
+                text = sideName + "（点击棋子选择，重复点加数量）"
+                textSize = 15f; setTextColor(0xFF2A2A2A.toInt())
+            }
+            row.addView(title)
+            val icons = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            // 候选棋子：复用水墨棋子图 + 左上角数量角标（未选时灰化）
+            val views = HashMap<Char, PiecePickView>()
+            fun refresh() { for ((ch, v) in views) v.count = map[ch] ?: 0 }
+            for (ch in pieces) {
+                val v = PiecePickView(this, ch, paletteBitmap(ch)) { n ->
+                    if (n > 9) map.remove(ch) else map[ch] = n
+                    refresh()
+                }
+                views[ch] = v
+                icons.addView(v)
+            }
+            // 暗子数量：TextView 点击循环 0..9
+            val darkView = TextView(this).apply {
+                textSize = 15f; gravity = android.view.Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(90), dp(46)).apply { setMargins(dp(8), 0, 0, 0) }
+                background = androidx.core.content.ContextCompat.getDrawable(
+                    this@ScanActivity, com.zfdang.chess.R.drawable.bg_card_white)
+                setOnClickListener {
+                    val n = (darkRef() + 1) % 10
+                    darkSet(n)
+                    text = "暗子 ×$n"
+                }
+            }
+            darkView.text = "暗子 ×${darkRef()}"
+            icons.addView(darkView)
+            refresh()
+            row.addView(icons)
+            return row
+        }
+
+        root.addView(buildRow("红方吃掉：", revealChars, redPieces, { redDark }, { redDark = it }))
+        root.addView(buildRow("黑方吃掉：", hideChars, blackPieces, { blackDark }, { blackDark = it }))
+
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("补充吃子记录（可选）")
-            .setMessage("扫描前的历史吃子无法从图片得知。可在此补充，让对弈页吃子区正确显示。\n留空则不补充。")
-            .setView(et)
-            .setPositiveButton("保存") { _, _ -> capturesSpec = et.text.toString().trim() }
+            .setMessage("扫描前的历史吃子无法从图片得知。点击棋子选择，重复点累加数量；暗子点数字切换。留空则不补充。")
+            .setView(scroll)
+            .setPositiveButton("保存") { _, _ ->
+                val red = LinkedHashMap<Char, Int>()
+                val black = LinkedHashMap<Char, Int>()
+                for ((ch, n) in redPieces) red[ch] = n
+                for ((ch, n) in blackPieces) black[ch] = n
+                if (redDark > 0) red['X'] = redDark
+                if (blackDark > 0) black['x'] = blackDark
+                capturesSpec = com.zfdang.chess.jieqi.JieqiCaptures.format(red, black)
+            }
             .setNegativeButton("清空") { _, _ -> capturesSpec = "" }
             .show()
     }
@@ -268,7 +340,7 @@ class ScanActivity : AppCompatActivity() {
     private fun onCellTapped(r: Int, c: Int) {
         val idx = r * 9 + c
         val ch = grid[r][c]
-        // 揭棋固定候选栏模式：选中候选棋子后，点棋盘格直接摆/替换（可连续摆）
+        // 揭棋固定候选栏模式：选中候选棋子后，点棋盘格直接摆/替换（一次选中只摆一次）
         if (jieqiMode && palettePiece != null) {
             val piece = palettePiece!!
             placementError(piece, r, c)?.let {
@@ -278,6 +350,7 @@ class ScanActivity : AppCompatActivity() {
             grid[r][c] = piece
             board.grid = grid
             board.uncertainCells = board.uncertainCells - idx
+            highlightPalette(null)   // 摆完立即取消选中，再摆需重新选
             updateFen()
             return
         }
@@ -461,5 +534,57 @@ class ScanActivity : AppCompatActivity() {
         }
         startActivity(i)
         finish()
+    }
+
+    /** 补充吃子编辑器里的单个棋子候选：画棋子图 + 数量角标，点击回调累加。 */
+    private class PiecePickView(
+        context: android.content.Context,
+        private val ch: Char,
+        private val bmp: Bitmap?,
+        private val onPick: (Int) -> Unit
+    ) : View(context) {
+        var count = 0
+            set(value) { field = value; invalidate() }
+
+        private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+
+        override fun onMeasure(w: Int, h: Int) {
+            val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+            setMeasuredDimension(dp(42), dp(46))
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            val alpha = if (count > 0) 255 else 90
+            if (bmp != null) {
+                p.alpha = alpha
+                val size = minOf(width, height) * 0.86f
+                canvas.drawBitmap(bmp, null,
+                    android.graphics.RectF((width - size) / 2, (height - size) / 2,
+                        (width + size) / 2, (height + size) / 2), p)
+            } else {
+                p.alpha = alpha
+                p.textSize = height * 0.5f
+                val fm = p.fontMetrics
+                canvas.drawText(ch.toString(), width / 2f,
+                    height / 2f - (fm.ascent + fm.descent) / 2f, p)
+            }
+            p.alpha = 255
+            if (count > 1) {
+                p.color = 0xFF8C2B1E.toInt(); p.style = android.graphics.Paint.Style.FILL
+                val r = minOf(width, height) * 0.21f
+                canvas.drawCircle(r, r, r, p)
+                p.color = 0xFFFFFFFF.toInt(); p.textSize = r * 1.35f
+                val fm = p.fontMetrics
+                canvas.drawText(count.toString(), r, r - (fm.ascent + fm.descent) / 2f, p)
+            }
+        }
+
+        override fun onTouchEvent(ev: android.view.MotionEvent): Boolean {
+            if (ev.action == android.view.MotionEvent.ACTION_UP) onPick(count + 1)
+            return true
+        }
     }
 }

@@ -590,26 +590,16 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
      *  暗子数用 X/x 背面加入（wasHidden=true，身份未知）。 */
     private fun applyCapturesSpec(spec: String?) {
         if (spec.isNullOrBlank()) return
-        try {
-            val groups = spec.split(";")
-            if (groups.size != 2) return
-            for (side in 0..1) {
-                val parts = groups[side].split(",")
-                if (parts.size != 2) continue
-                val letters = parts[0].trim()
-                val darkCount = parts[1].trim().toIntOrNull() ?: 0
-                val expectedCase = if (side == 0) Char::isUpperCase else Char::isLowerCase
-                for (ch in letters) {
-                    if (ch in "Kk" || JieqiRules.isDark(ch)) continue
-                    if (!expectedCase(ch)) continue
-                    state.captured[side].add(CapturedPiece(ch, false))
-                }
-                val darkChar = if (side == 0) 'X' else 'x'
-                repeat(darkCount.coerceAtLeast(0).coerceAtMost(16)) {
-                    state.captured[side].add(CapturedPiece(darkChar, true))
+        val (red, black) = JieqiCaptures.parse(spec)
+        for (side in 0..1) {
+            val map = if (side == 0) red else black
+            val dark = if (side == 0) JieqiCaptures.DARK_RED else JieqiCaptures.DARK_BLACK
+            for ((ch, n) in map) {
+                repeat(n) {
+                    state.captured[side].add(CapturedPiece(ch, ch == dark))
                 }
             }
-        } catch (_: Exception) {}
+        }
     }
 
     // ------------------------------------------------------------------

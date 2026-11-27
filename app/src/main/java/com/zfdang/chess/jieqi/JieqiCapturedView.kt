@@ -37,20 +37,43 @@ class JieqiCapturedView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (pieces.isEmpty() || width == 0 || height == 0) return
-        val n = pieces.size
+        // 同一棋子只画一个，左上角标数字（吃子超过 1 个时）
+        val groups = JieqiCaptures.collapse(pieces)
+        val n = groups.size
         val icon = min(height * 0.82f, width / maxOf(n, 1) * 0.9f)
         val gap = icon * 0.06f
         val totalW = n * icon + (n - 1) * gap
         var x = (width - totalW) / 2f
         val y = (height - icon) / 2f
-        for (ch in pieces) {
+        for ((ch, count) in groups) {
             val bmp = bitmapFor(ch)
             if (bmp != null) {
                 canvas.drawBitmap(bmp, null,
                     Rect(x.toInt(), y.toInt(), (x + icon).toInt(), (y + icon).toInt()), paint)
             }
+            if (count > 1) drawBadge(canvas, x, y, count, icon)
             x += icon + gap
         }
+    }
+
+    /** 数字角标：左上角画一个小圆底 + 白色数字。 */
+    private fun drawBadge(canvas: Canvas, left: Float, top: Float, count: Int, icon: Float) {
+        val r = icon * 0.22f
+        val cx = left + r * 0.65f
+        val cy = top + r * 0.65f
+        badgePaint.color = 0xFF8C2B1E.toInt()
+        canvas.drawCircle(cx, cy, r, badgePaint)
+        badgePaint.color = 0xFFFFFFFF.toInt()
+        badgePaint.textAlign = Paint.Align.CENTER
+        badgePaint.textSize = r * 1.35f
+        val fm = badgePaint.fontMetrics
+        val baseline = cy - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(count.toString(), cx, baseline, badgePaint)
+    }
+
+    private val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
 
     private fun bitmapFor(ch: Char): Bitmap? {
