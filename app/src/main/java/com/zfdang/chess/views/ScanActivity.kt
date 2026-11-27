@@ -54,7 +54,7 @@ class ScanActivity : AppCompatActivity() {
     /** 揭棋模式：编辑器可摆暗子，校准完成后进入揭棋对弈 */
     private var jieqiMode = false
 
-    /** 可选补充的吃子记录："红明子字母,红暗子数;黑明子字母,黑暗子数"，空=不补充 */
+    /** 可选补充的吃子记录："红方吃的黑子,暗数;黑方吃的红子,暗数"，空=不补充 */
     private var capturesSpec: String = ""
 
     /** 揭棋固定候选栏：当前选中的待摆棋子（null=无），及候选视图引用 */

@@ -16,72 +16,64 @@ import android.widget.TextView
 /**
  * 吃子记录编辑面板（校准页 / 对局页共用）。
  *
- * 红黑两行，每行 6 个明子（帅/将不会被吃，故不含）+ 1 个暗子背面图标。
+ * 红黑两行，每行 6 个明子 + 1 个暗子背面图标：
+ * - 「红方吃掉」行显示黑子（a b n r c p），「黑方吃掉」行显示红子（A B N R C P）
  * - 点击：数量 +1，到上限后再点归零；长按：数量 -1
  * - 上限：常规子 2、兵/卒 5、暗子 9
  * - 左上角数字角标显示已被吃数量（>1 时）
  *
- * 结果通过 [buildSpec] 导出为 "红明子,红暗数;黑明子,黑暗数"。
+ * 结果通过 [buildSpec] 导出为 "红方吃的子,暗数;黑方吃的子,暗数"。
  */
 class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
 
-    private val redPieces = LinkedHashMap<Char, Int>()
-    private val blackPieces = LinkedHashMap<Char, Int>()
-    private var redDark = 0
-    private var blackDark = 0
+    /** 两组：0=红方吃掉(黑子,小写) 1=黑方吃掉(红子,大写) */
+    private val groups = arrayOf(LinkedHashMap<Char, Int>(), LinkedHashMap<Char, Int>())
     private val views = HashMap<Char, PiecePickView>()
 
-    private val revealChars = listOf('A', 'B', 'N', 'R', 'C', 'P')
-    private val hideChars = listOf('a', 'b', 'n', 'r', 'c', 'p')
+    private val redEatsChars = listOf('a', 'b', 'n', 'r', 'c', 'p')  // 红方吃掉：黑子
+    private val blackEatsChars = listOf('A', 'B', 'N', 'R', 'C', 'P') // 黑方吃掉：红子
 
     init {
         orientation = VERTICAL
         val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
         setPadding(dp(4), dp(4), dp(4), dp(4))
-        addView(buildRow("红方吃掉：", revealChars, JieqiCaptures.DARK_RED))
-        addView(buildRow("黑方吃掉：", hideChars, JieqiCaptures.DARK_BLACK))
+        addView(buildRow("红方吃掉（黑子）：", redEatsChars, 0))
+        addView(buildRow("黑方吃掉（红子）：", blackEatsChars, 1))
     }
 
     /** 用已有 spec 初始化面板。 */
     fun load(spec: String?) {
         val (red, black) = JieqiCaptures.parse(spec)
-        redPieces.clear(); blackPieces.clear()
-        for ((ch, n) in red) if (ch != JieqiCaptures.DARK_RED) redPieces[ch] = n
-        for ((ch, n) in black) if (ch != JieqiCaptures.DARK_BLACK) blackPieces[ch] = n
-        redDark = red[JieqiCaptures.DARK_RED] ?: 0
-        blackDark = black[JieqiCaptures.DARK_BLACK] ?: 0
-        for ((ch, v) in views) v.count = currentCount(ch)
+        groups[0].clear(); groups[1].clear()
+        val dark0 = JieqiCaptures.darkSlotFor(0)
+        val dark1 = JieqiCaptures.darkSlotFor(1)
+        for ((ch, n) in red) if (ch != dark0) groups[0][ch] = n
+        for ((ch, n) in black) if (ch != dark1) groups[1][ch] = n
+        if ((red[dark0] ?: 0) > 0) groups[0][dark0] = red[dark0]!!
+        if ((black[dark1] ?: 0) > 0) groups[1][dark1] = black[dark1]!!
+        for ((ch, v) in views) v.count = countOf(ch)
     }
 
     /** 导出当前编辑结果为传输串。 */
-    fun buildSpec(): String {
-        val red = LinkedHashMap(redPieces)
-        val black = LinkedHashMap(blackPieces)
-        if (redDark > 0) red[JieqiCaptures.DARK_RED] = redDark
-        if (blackDark > 0) black[JieqiCaptures.DARK_BLACK] = blackDark
-        return JieqiCaptures.format(red, black)
+    fun buildSpec(): String = JieqiCaptures.format(groups[0], groups[1])
+
+    /** 某个字符属于哪一组：小写=红方吃掉(0) 大写=黑方吃掉(1)；x/X 按槽位归属 */
+    private fun groupOf(ch: Char): Int = when (ch) {
+        JieqiCaptures.DARK_BLACK -> 0   // x = 红方吃掉的暗子
+        JieqiCaptures.DARK_RED -> 1     // X = 黑方吃掉的暗子
+        else -> if (ch.isLowerCase()) 0 else 1
     }
 
-    private fun currentCount(ch: Char): Int = when (ch) {
-        JieqiCaptures.DARK_RED -> redDark
-        JieqiCaptures.DARK_BLACK -> blackDark
-        else -> (if (ch.isUpperCase()) redPieces else blackPieces)[ch] ?: 0
-    }
+    private fun countOf(ch: Char): Int = groups[groupOf(ch)][ch] ?: 0
 
     private fun setCount(ch: Char, n: Int) {
+        val g = groupOf(ch)
         val capped = n.coerceIn(0, JieqiCaptures.maxOf(ch))
-        when (ch) {
-            JieqiCaptures.DARK_RED -> redDark = capped
-            JieqiCaptures.DARK_BLACK -> blackDark = capped
-            else -> {
-                val map = if (ch.isUpperCase()) redPieces else blackPieces
-                if (capped == 0) map.remove(ch) else map[ch] = capped
-            }
-        }
-        for ((c, v) in views) v.count = currentCount(c)
+        if (capped == 0) groups[g].remove(ch) else groups[g][ch] = capped
+        for ((c, v) in views) v.count = countOf(c)
     }
 
-    private fun buildRow(title: String, pieces: List<Char>, darkChar: Char): View {
+    private fun buildRow(title: String, pieces: List<Char>, eaterSide: Int): View {
         val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
         val row = LinearLayout(context).apply {
             orientation = VERTICAL
@@ -91,12 +83,13 @@ class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
             text = "${title}（点一下 +1，到上限再点归零；长按 -1）"
             textSize = 13f
             setTextColor(0xFF444444.toInt())
-        })
+        }))
         val icons = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        for (ch in pieces + darkChar) {
+        val darkSlot = JieqiCaptures.darkSlotFor(eaterSide)
+        for (ch in pieces + darkSlot) {
             val bmp = if (ch == JieqiCaptures.DARK_RED || ch == JieqiCaptures.DARK_BLACK)
                 JieqiTiles.darkTile(96) else pieceBitmap(ch)
             val v = PiecePickView(context, ch, bmp) { viewCh, next -> setCount(viewCh, next) }
@@ -174,11 +167,7 @@ class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
 
         override fun onTouchEvent(ev: MotionEvent): Boolean {
             when (ev.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    longPressed = false
-                    handler.postDelayed(longPressRunnable, 500)
-                    return true
-                }
+                MotionEvent.ACTION_DOWN -> { longPressed = false; handler.postDelayed(longPressRunnable, 500); return true }
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(longPressRunnable)
                     if (!longPressed) {
@@ -187,15 +176,9 @@ class JieqiCapturesEditor(context: Context) : LinearLayout(context) {
                     }
                     performClick()
                 }
-                MotionEvent.ACTION_CANCEL -> {
-                    handler.removeCallbacks(longPressRunnable)
-                    longPressed = false
-                }
+                MotionEvent.ACTION_CANCEL -> { handler.removeCallbacks(longPressRunnable); longPressed = false }
                 MotionEvent.ACTION_MOVE -> {
-                    // 手指明显移动则取消长按
-                    if (ev.x < 0 || ev.x > width || ev.y < 0 || ev.y > height) {
-                        handler.removeCallbacks(longPressRunnable)
-                    }
+                    if (ev.x < 0 || ev.x > width || ev.y < 0 || ev.y > height) handler.removeCallbacks(longPressRunnable)
                 }
             }
             return true

@@ -29,7 +29,7 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
 
     companion object {
         const val EXTRA_IMPORT_FEN = "jqImportFen"       // 揭棋方言 FEN（扫描/导入回传）
-        const val EXTRA_CAPTURES = "jqCaptures"           // 可选吃子补充："红明子,红暗数;黑明子,黑暗数"
+        const val EXTRA_CAPTURES = "jqCaptures"           // 可选吃子补充："红方吃的黑子,暗数;黑方吃的红子,暗数"
         const val EXTRA_SCAN_GRID = "jqScanGrid"         // 失败回传：校对后的棋盘
         const val EXTRA_SCAN_FEN = "jqScanFen"           // 失败回传：校对页展示的 FEN
         const val EXTRA_RESTORE_GRID = "jqRestoreGrid"
@@ -586,15 +586,15 @@ class JieqiActivity : AppCompatActivity(), JieqiEngineClient.Listener {
         updateStatus()
     }
 
-    /** 解析可选的吃子补充："红明子,红暗数;黑明子,黑暗数"。
-     *  明子按 FEN 字母原样加入 captured[eater]（wasHidden=false）；
-     *  暗子数用 X/x 背面加入（wasHidden=true，身份未知）。 */
+    /** 解析可选的吃子补充："红方吃的黑子(小写),暗数;黑方吃的红子(大写),暗数"。
+     *  明子按真实字母（大小写=被吃子所属方）加入 captured[eater]（wasHidden=false）；
+     *  暗子数用背面加入（wasHidden=true，身份未知）。 */
     private fun applyCapturesSpec(spec: String?) {
         if (spec.isNullOrBlank()) return
         val (red, black) = JieqiCaptures.parse(spec)
         for (side in 0..1) {
             val map = if (side == 0) red else black
-            val dark = if (side == 0) JieqiCaptures.DARK_RED else JieqiCaptures.DARK_BLACK
+            val dark = JieqiCaptures.darkSlotFor(side)
             for ((ch, n) in map) {
                 repeat(n) {
                     state.captured[side].add(CapturedPiece(ch, ch == dark))

@@ -4,16 +4,20 @@ package com.zfdang.chess.jieqi
  * 吃子记录的解析/格式化与去重显示。
  * 供校对页「补充吃子」编辑器和首页吃子区共用，保证同一副棋子只显示一个图标 + 数字角标。
  *
- * 传输格式沿用原有约定："红明子,红暗数;黑明子,黑暗数"，例如 "RRNP,2;np,1"。
+ * 传输格式："红方吃掉的子,红方吃掉暗数;黑方吃掉的子,黑方吃掉暗数"。
+ * 红方吃掉的是黑子（小写）、黑方吃掉的是红子（大写）；暗子统一背面，用 x/X 仅作槽位标记。
  */
 object JieqiCaptures {
-    const val DARK_RED = 'X'
-    const val DARK_BLACK = 'x'
+    const val DARK_RED = 'X'    // 黑方吃掉的暗子（槽位标记：红方暗）
+    const val DARK_BLACK = 'x'  // 红方吃掉的暗子（槽位标记：黑方暗）
 
     /** 单种棋子可吃上限：常规子 2、兵/卒 5、暗子 9（避免点选过多）。 */
     const val MAX_NORMAL = 2
     const val MAX_PAWN = 5
     const val MAX_DARK = 9
+
+    /** 某组（谁吃掉）应使用的暗子槽位标记：红方吃掉→x，黑方吃掉→X */
+    fun darkSlotFor(eaterSide: Int): Char = if (eaterSide == 0) DARK_BLACK else DARK_RED
 
     private const val REVEALED = "KABNRCPkabnrcp"
 
@@ -23,7 +27,8 @@ object JieqiCaptures {
         else -> MAX_NORMAL
     }
 
-    /** 解析吃子补充串；返回 (红方吃掉的子, 黑方吃掉的子)，map 值为数量。 */
+    /** 解析吃子补充串；返回 (红方吃掉的子, 黑方吃掉的子)，map 值为数量。
+     *  红方吃掉的是黑子（小写），黑方吃掉的是红子（大写）。 */
     fun parse(spec: String?): Pair<MutableMap<Char, Int>, MutableMap<Char, Int>> {
         val red = LinkedHashMap<Char, Int>()
         val black = LinkedHashMap<Char, Int>()
@@ -34,11 +39,12 @@ object JieqiCaptures {
             val parts = groups[side].split(",")
             if (parts.size != 2) continue
             val dest = if (side == 0) red else black
-            val dark = if (side == 0) DARK_RED else DARK_BLACK
+            val dark = darkSlotFor(side)
             for (ch in parts[0].trim()) {
                 if (ch == 'K' || ch == 'k') continue
                 if (ch !in REVEALED) continue
-                if (if (side == 0) !ch.isUpperCase() else !ch.isLowerCase()) continue
+                // 红方吃黑子→小写；黑方吃红子→大写
+                if (if (side == 0) !ch.isLowerCase() else !ch.isUpperCase()) continue
                 dest[ch] = (dest[ch] ?: 0) + 1
             }
             val n = parts[1].trim().toIntOrNull() ?: 0
@@ -58,7 +64,8 @@ object JieqiCaptures {
     /** 反向格式化；两边都没吃子时返回空串（表示不补充）。 */
     fun format(red: Map<Char, Int>, black: Map<Char, Int>): String {
         if (red.isEmpty() && black.isEmpty()) return ""
-        fun side(map: Map<Char, Int>, dark: Char): String {
+        fun side(map: Map<Char, Int>, eaterSide: Int): String {
+            val dark = darkSlotFor(eaterSide)
             val letters = StringBuilder()
             for ((ch, nRaw) in map) {
                 if (ch == 'K' || ch == 'k') continue
@@ -69,7 +76,7 @@ object JieqiCaptures {
             val darkN = (map[dark] ?: 0).coerceIn(0, MAX_DARK)
             return "$letters,$darkN"
         }
-        return "${side(red, DARK_RED)};${side(black, DARK_BLACK)}"
+        return "${side(red, 0)};${side(black, 1)}"
     }
 
     /** List<Char> -> [(棋子, 数量)]，按首次出现顺序去重，供吃子区绘制数字角标。 */
@@ -82,7 +89,8 @@ object JieqiCaptures {
     /** 从对局状态真实吃子列表导出 spec（供对局页「修正吃子」载入编辑器）。
      *  只取明子（wasHidden=false）；暗子身份未知的统一并入暗子计数，身份已知的真实子是历史录入，不改。 */
     fun specOf(captured: Array<MutableList<CapturedPiece>>): String {
-        fun side(list: List<CapturedPiece>, dark: Char): Map<Char, Int> {
+        fun side(list: List<CapturedPiece>, eaterSide: Int): Map<Char, Int> {
+            val dark = darkSlotFor(eaterSide)
             val m = LinkedHashMap<Char, Int>()
             for (cp in list) {
                 if (cp.ch == 'K' || cp.ch == 'k') continue
@@ -92,7 +100,7 @@ object JieqiCaptures {
             }
             return m
         }
-        return format(side(captured[0], DARK_RED), side(captured[1], DARK_BLACK))
+        return format(side(captured[0], 0), side(captured[1], 1))
     }
 
     /** 从 spec 导出「被吃明子」按所属方+角色的计数，供身份池扣减。

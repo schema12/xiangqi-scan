@@ -172,7 +172,7 @@ class JieqiImportValidatorTest {
 
     @Test
     fun `captured revealed pieces are deducted from identity pool`() {
-        // 盘面无红马 X（只有帅/暗子），无补充时红马池=初始2；补充"黑方吃了2个红马"后池应扣到0
+        // 盘面无红马，无补充时红马池=初始2；补充"黑方吃了2个红马"后红马池应扣到0
         val g = emptyGrid()
         g[0][4] = 'k'; g[9][4] = 'K'
         g[9][0] = 'X'   // 红暗车（初始位）
@@ -180,9 +180,8 @@ class JieqiImportValidatorTest {
         assertTrue(without.ok)
         val fenWithout = without.fen!!
 
-        // 补充吃子（格式"红明子,红暗数;黑明子,黑暗数"）：红组放 2 个红马 N
-        // → 解析出红马身份，红马池应被扣掉（这正是"补充吃子告诉引擎"的意图）
-        val with = JieqiImportValidator.validate(g, true, "NN,0;,0")
+        // 新约定：黑方吃掉红子放黑组(大写)。"黑方吃了2个红马"→ 黑组 NN
+        val with = JieqiImportValidator.validate(g, true, ";NN,0")
         assertTrue("补充吃子后仍应合法：${with.issues}", with.ok)
         val fenWith = with.fen!!
         // FEN 第 3 字段（身份池）：无补充含 N2，补充后红马池应被扣掉
@@ -194,10 +193,11 @@ class JieqiImportValidatorTest {
 
     @Test
     fun `captured dark unknown does not deduct pool`() {
-        // 补充的暗子数（X/x）不应扣任何身份池槽（未知身份引擎概率处理）
-        val slots = JieqiCaptures.capturedRevealedSlots("RR,3;pp,2")
-        assertEquals(2, slots[0][0])  // 2 个红车 → 红车槽 +2
-        assertEquals(0, slots[0][5])  // 红兵槽不受"3个红暗子"影响
-        assertEquals(2, slots[1][5])  // 2 个黑卒 → 黑兵槽 +2
+        // 补充的暗子数（x/X）不应扣任何身份池槽（未知身份引擎概率处理）
+        // 新约定：红方吃黑子小写、黑方吃红子大写
+        val slots = JieqiCaptures.capturedRevealedSlots("rr,3;PP,2")
+        assertEquals(2, slots[1][0])  // 红方吃掉2个黑车(r) → 黑车槽(side1,slot0) +2
+        assertEquals(0, slots[1][5])  // 黑兵槽不受"3个红方吃的暗子"影响
+        assertEquals(2, slots[0][5])  // 黑方吃掉2个红兵(P) → 红兵槽(side0,slot5) +2
     }
 }
